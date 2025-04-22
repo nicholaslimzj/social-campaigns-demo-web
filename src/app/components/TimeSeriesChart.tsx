@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -33,7 +33,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   anomalies = [],
   valueFormatter = (value) => `${value.toFixed(2)}`
 }) => {
-  // Format the tooltip value
+  // Format the tooltip value - using any for Recharts compatibility
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderTooltipContent = (props: any) => {
     const { payload, label } = props;
     if (!payload || payload.length === 0) return null;
@@ -41,7 +42,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     return (
       <div className="bg-white p-2 border border-gray-200 shadow-md rounded">
         <p className="font-medium">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload && payload.map((entry: { color: string; name: string; value: number }, index: number) => (
           <p key={`item-${index}`} style={{ color: entry.color }}>
             {`${entry.name}: ${valueFormatter(entry.value)}`}
           </p>

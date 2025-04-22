@@ -6,7 +6,7 @@ interface KPICardProps {
   title: string;
   value: number;
   change: number;
-  trend: 'up' | 'down';
+  trend: string;
   format?: 'percent' | 'currency' | 'decimal' | 'integer';
   prefix?: string;
   suffix?: string;
@@ -40,7 +40,7 @@ const KPICard: React.FC<KPICardProps> = ({
   const trendColor = trend === 'up' ? 'text-green-500' : 'text-red-500';
   
   // Determine if the change is positive or negative for display
-  const changePrefix = change >= 0 ? '+' : '';
+  const changePrefix = change >= 0 ? '+' : '-';
   
   return (
     <div className="bg-white p-4 rounded-lg shadow">
@@ -48,7 +48,7 @@ const KPICard: React.FC<KPICardProps> = ({
       <div className="flex items-center justify-between">
         <p className="text-2xl font-bold">{prefix}{formatValue(value)}{suffix}</p>
         <span className={`flex items-center ${trendColor}`}>
-          {trend === 'up' ? '↑' : '↓'} {Math.abs(change * 100).toFixed(1)}%
+          {trend === 'up' ? '↑' : '↓'} {changePrefix}{Math.abs(change * 100).toFixed(1)}%
         </span>
       </div>
       <p className="text-xs text-gray-500 mt-1">vs last month</p>

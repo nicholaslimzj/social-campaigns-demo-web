@@ -6,8 +6,6 @@ import {
   fetchCompanyMonthlyMetrics,
   fetchCompanyAudiences,
   fetchCompanyChannels,
-  fetchAudiencePerformanceMatrix,
-  fetchChannelPerformanceMatrix,
   fetchCampaignDurationAnalysis,
   askQuestion,
   Company,
@@ -25,6 +23,7 @@ import PerformanceTable from './components/PerformanceTable';
 import TimeSeriesChart from './components/TimeSeriesChart';
 import TabNavigation from './components/TabNavigation';
 import QueryInterface from './components/QueryInterface';
+import CohortAnalysis from './components/CohortAnalysis';
 
 export default function Home() {
   // State for company selection and navigation
@@ -36,7 +35,8 @@ export default function Home() {
   const [monthlyMetrics, setMonthlyMetrics] = useState<CompanyMetrics | null>(null);
   const [audiences, setAudiences] = useState<AudienceResponse | null>(null);
   const [channels, setChannels] = useState<ChannelResponse | null>(null);
-  const [campaignDuration, setCampaignDuration] = useState<CampaignDurationResponse | null>(null);
+  // Campaign duration data is fetched but not currently displayed in the UI
+  const [, setCampaignDuration] = useState<CampaignDurationResponse | null>(null);
   
   // State for loading and errors
   const [loading, setLoading] = useState<boolean>(true);
@@ -117,8 +117,10 @@ export default function Home() {
     try {
       const result = await askQuestion(question, selectedCompany);
       setQueryResults(result);
-    } catch (err: any) {
-      setError(err.message || 'Failed to process query');
+    } catch (err: unknown) {
+      // Type guard for Error objects
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage || 'Failed to process query');
       console.error(err);
     } finally {
       setQueryLoading(false);
@@ -129,11 +131,11 @@ export default function Home() {
   const kpiData = (() => {
     if (!monthlyMetrics?.metrics) return null;
     
-    const getLatestValue = (metricArray: any[]) => {
+    const getLatestValue = (metricArray: { value: number; month: string }[]) => {
       return metricArray.length > 0 ? metricArray[metricArray.length - 1].value : 0;
     };
     
-    const calculateChange = (metricArray: any[]) => {
+    const calculateChange = (metricArray: { value: number; month: string }[]) => {
       if (metricArray.length < 2) return 0;
       const current = metricArray[metricArray.length - 1].value;
       const previous = metricArray[metricArray.length - 2].value;
@@ -161,13 +163,13 @@ export default function Home() {
         change: calculateChange(monthlyMetrics.metrics.ctr),
         trend: calculateChange(monthlyMetrics.metrics.ctr) >= 0 ? 'up' : 'down'
       },
-      campaignCount: {
-        value: monthlyMetrics.metrics.campaign_count ? 
-          getLatestValue(monthlyMetrics.metrics.campaign_count) : 0,
-        change: monthlyMetrics.metrics.campaign_count ? 
-          calculateChange(monthlyMetrics.metrics.campaign_count) : 0,
-        trend: monthlyMetrics.metrics.campaign_count && 
-          calculateChange(monthlyMetrics.metrics.campaign_count) >= 0 ? 'up' : 'down'
+      revenue: {
+        value: monthlyMetrics.metrics.revenue ? 
+          getLatestValue(monthlyMetrics.metrics.revenue) / 1000 : 0, // Convert to K (thousands)
+        change: monthlyMetrics.metrics.revenue ? 
+          calculateChange(monthlyMetrics.metrics.revenue) : 0,
+        trend: monthlyMetrics.metrics.revenue && 
+          calculateChange(monthlyMetrics.metrics.revenue) >= 0 ? 'up' : 'down'
       }
     };
   })();
@@ -312,7 +314,7 @@ export default function Home() {
             <KPICard 
               title="ROI" 
               value={kpiData.roi.value} 
-              format="multiplier" 
+              format="decimal" 
               change={kpiData.roi.change} 
               trend={kpiData.roi.trend} 
             />
@@ -331,11 +333,11 @@ export default function Home() {
               trend={kpiData.ctr.trend} 
             />
             <KPICard 
-              title="Campaign Count" 
-              value={kpiData.campaignCount.value} 
-              format="number" 
-              change={kpiData.campaignCount.change} 
-              trend={kpiData.campaignCount.trend} 
+              title="Revenue (K)" 
+              value={kpiData.revenue.value} 
+              format="decimal" 
+              change={kpiData.revenue.change} 
+              trend={kpiData.revenue.trend} 
             />
           </>
         )}
@@ -403,10 +405,18 @@ export default function Home() {
                   <PerformanceTable 
                     data={audiences.audiences}
                     columns={[
-                      { key: 'audience', header: 'TARGET AUDIENCE' },
-                      { key: 'conversion_rate', header: 'CONV. RATE', format: 'percent' },
-                      { key: 'roi', header: 'ROI', format: 'multiplier' },
-                      { key: 'vs_industry', header: 'VS INDUSTRY', format: 'percentDiff' }
+                      { key: 'audience_id', header: 'TARGET AUDIENCE' },
+                      { key: 'avg_conversion_rate', header: 'CONV. RATE', format: 'percent' },
+                      { key: 'avg_roi', header: 'ROI', format: 'decimal' },
+                      { 
+                        key: 'vs_industry', 
+                        header: 'VS INDUSTRY', 
+                        format: 'industryComparison',
+                        comparisonKeys: {
+                          valueKey: 'avg_roi',
+                          benchmarkKey: 'industry_benchmarks.roi'
+                        }
+                      }
                     ]}
                     limit={3}
                   />
@@ -420,10 +430,18 @@ export default function Home() {
                   <PerformanceTable 
                     data={channels.channels}
                     columns={[
-                      { key: 'channel', header: 'CHANNEL' },
-                      { key: 'conversion_rate', header: 'CONV. RATE', format: 'percent' },
-                      { key: 'roi', header: 'ROI', format: 'multiplier' },
-                      { key: 'vs_industry', header: 'VS INDUSTRY', format: 'percentDiff' }
+                      { key: 'channel_id', header: 'CHANNEL' },
+                      { key: 'avg_conversion_rate', header: 'CONV. RATE', format: 'percent' },
+                      { key: 'avg_roi', header: 'ROI', format: 'decimal' },
+                      { 
+                        key: 'vs_industry', 
+                        header: 'VS INDUSTRY', 
+                        format: 'industryComparison',
+                        comparisonKeys: {
+                          valueKey: 'avg_roi',
+                          benchmarkKey: 'industry_benchmarks.roi'
+                        }
+                      }
                     ]}
                     limit={3}
                   />
@@ -434,10 +452,11 @@ export default function Home() {
         )}
 
         {activeTab === 'cohort' && (
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Cohort Analysis</h3>
-            <p className="text-gray-500">Cohort analysis content will be implemented in a future update.</p>
-          </div>
+          <CohortAnalysis 
+            audiences={audiences} 
+            channels={channels} 
+            companyId={selectedCompany} 
+          />
         )}
 
         {activeTab === 'channel' && (

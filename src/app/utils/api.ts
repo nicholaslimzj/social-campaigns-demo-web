@@ -33,38 +33,105 @@ export interface CompanyMetrics {
 }
 
 export interface Audience {
-  audience: string;
-  conversion_rate: number;
-  roi: number;
-  vs_industry: number;
-  anomaly?: boolean;
+  audience_id: string;
+  avg_conversion_rate: number;
+  avg_roi: number;
+  avg_acquisition_cost: number;
+  avg_ctr: number;
+  campaign_count: number;
+  has_anomaly?: boolean;
+  anomaly?: {
+    description: string | null;
+    has_anomaly: boolean;
+  };
+  industry_benchmarks?: {
+    conversion_rate: number;
+    roi: number;
+    acquisition_cost: number;
+    ctr: number;
+  };
+  percentiles?: {
+    conversion_rate: number;
+    roi: number;
+    acquisition_cost: number;
+    ctr: number;
+  };
+  performance?: {
+    conversion_rate: string;
+    roi: string;
+    acquisition_cost: string;
+    ctr: string;
+    overall: string;
+  };
 }
 
 export interface AudienceResponse {
-  company: string;
+  company?: string;
   audiences: Audience[];
 }
 
 export interface AudiencePerformanceMatrix {
-  company: string;
-  matrix: {
-    rows: string[];
-    columns: string[];
-    values: {
-      row: string;
-      column: string;
-      conversion_rate: number;
-      roi: number;
-    }[];
-  };
+  matrix: Array<{
+    audience_id: string;
+    dimensions: Array<{
+      dimension_value: string;
+      metrics: {
+        roi: number;
+        conversion_rate: number;
+        acquisition_cost: number;
+        ctr: number;
+      };
+    }>;
+  }>;
+}
+
+export interface AudienceBenchmark {
+  audience_id: string;
+  overall_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  roi_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  conversion_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  ctr_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  acquisition_performance: 'excellent' | 'good' | 'average' | 'below_average';
+}
+
+export interface AudienceBenchmarksResponse {
+  audiences: AudienceBenchmark[];
+  industry: string;
+}
+
+export interface AudienceCluster {
+  audience_id: string;
+  location: string;
+  channel: string;
+  goal: string;
+  campaign_count: number;
+  conversion_rate: number;
+  roi: number;
+  acquisition_cost: number;
+  ctr: number;
+  total_spend: number;
+  total_revenue: number;
+  performance_score: number;
+  performance_tier: string;
+  recommended_action: string;
+  avg_audience_conversion_rate: number;
+  avg_audience_roi: number;
+  avg_audience_ctr: number;
+  avg_audience_acquisition_cost: number;
+}
+
+export interface AudienceClustersResponse {
+  high_roi: AudienceCluster[];
+  high_conversion: AudienceCluster[];
 }
 
 export interface Channel {
-  channel: string;
-  conversion_rate: number;
-  roi: number;
-  vs_industry: number;
-  anomaly?: boolean;
+  channel_id: string;
+  avg_conversion_rate: number;
+  avg_roi: number;
+  avg_acquisition_cost: number;
+  avg_ctr: number;
+  campaign_count: number;
 }
 
 export interface ChannelResponse {
@@ -114,12 +181,88 @@ export interface CampaignDurationResponse {
   };
 }
 
+// Define a type for the query result data which can be various shapes
+type QueryResultData = Record<string, unknown> | Array<Record<string, unknown>> | null;
+
 export interface QueryResult {
   question: string;
   answer: string;
-  data?: any;
+  data?: QueryResultData;
   chart_type?: string;
   error?: string;
+}
+
+// Cohort Analysis interfaces
+export interface AudienceCluster {
+  cluster_id: string;
+  audiences: string[];
+  avg_roi: number;
+  avg_conversion_rate: number;
+  avg_acquisition_cost: number;
+  avg_ctr: number;
+  performance_index: number;
+  recommended_budget_allocation?: number;
+}
+
+export interface AudienceClustersResponse {
+  clusters: AudienceCluster[];
+}
+
+export interface AudienceBenchmark {
+  audience_id: string;
+  company_acquisition_cost: number;
+  company_conversion_rate: number;
+  company_ctr: number;
+  company_roi: number;
+  industry_acquisition_cost: number;
+  industry_conversion_rate: number;
+  industry_ctr: number;
+  industry_roi: number;
+  acquisition_percentile: number;
+  conversion_percentile: number;
+  ctr_percentile: number;
+  roi_percentile: number;
+  acquisition_performance: string;
+  conversion_performance: string;
+  ctr_performance: string;
+  roi_performance: string;
+  overall_performance: string;
+  has_anomaly: boolean;
+  anomaly_description: string | null;
+}
+
+export interface AudienceBenchmarksResponse {
+  audiences: AudienceBenchmark[];
+}
+
+export interface AudienceAnomaly {
+  audience_id: string;
+  metric: string;
+  actual_value: number;
+  expected_value: number;
+  z_score: number;
+  date: string;
+  explanation: string;
+  anomaly_count: number;
+  anomaly_impact: string;
+}
+
+export interface AudienceMonthlyMetricsResponse {
+  audiences: {
+    audience_id: string;
+    monthly_metrics: {
+      month: number;
+      roi: number;
+      conversion_rate: number;
+      acquisition_cost: number;
+      ctr: number;
+      [key: string]: any; // For other properties in the response
+    }[];
+  }[];
+}
+
+export interface AudienceAnomaliesResponse {
+  anomalies: AudienceAnomaly[];
 }
 
 // API functions
@@ -160,9 +303,9 @@ export async function fetchCompanyMonthlyMetrics(companyId: string, includeAnoma
 /**
  * Fetch audience data for a specific company
  */
-export async function fetchCompanyAudiences(companyId: string, includeAnomalies: boolean = false): Promise<AudienceResponse> {
+export async function fetchCompanyAudiences(companyId: string, includeMetrics: boolean = false): Promise<AudienceResponse> {
   try {
-    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences?include_anomalies=${includeAnomalies}`);
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences?include_metrics=${includeMetrics}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch audiences: ${response.status}`);
     }
@@ -176,9 +319,13 @@ export async function fetchCompanyAudiences(companyId: string, includeAnomalies:
 /**
  * Fetch audience performance matrix for a specific company
  */
-export async function fetchAudiencePerformanceMatrix(companyId: string): Promise<AudiencePerformanceMatrix> {
+export async function fetchAudiencePerformanceMatrix(companyId: string, dimensionType?: string): Promise<AudiencePerformanceMatrix> {
   try {
-    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audience_performance_matrix`);
+    const url = dimensionType
+      ? `${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences/performance_matrix?dimension_type=${dimensionType}`
+      : `${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences/performance_matrix`;
+    
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch audience performance matrix: ${response.status}`);
     }
@@ -190,11 +337,89 @@ export async function fetchAudiencePerformanceMatrix(companyId: string): Promise
 }
 
 /**
+ * Fetch high-performing audience clusters for a specific company
+ */
+export async function fetchAudienceClusters(companyId: string, limit: number = 5): Promise<AudienceClustersResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences/clusters?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audience clusters: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching audience clusters:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch audience benchmarks for a specific company
+ */
+export async function fetchAudienceBenchmarks(companyId: string): Promise<AudienceBenchmarksResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences/benchmarks`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audience benchmarks: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching audience benchmarks:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch monthly metrics for audiences
+ */
+export async function fetchAudienceMonthlyMetrics(companyId: string, audienceIds: string[]): Promise<AudienceMonthlyMetricsResponse> {
+  try {
+    // Make a single API call without audience_ids parameters
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audiences/monthly_metrics`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audience monthly metrics: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // If audienceIds is provided and not empty, filter the results client-side
+    if (audienceIds && audienceIds.length > 0) {
+      const audienceIdsSet = new Set(audienceIds);
+      data.audiences = data.audiences.filter((audience: any) => 
+        audienceIdsSet.has(audience.audience_id)
+      );
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching audience monthly metrics:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch audience anomalies for a specific company
+ */
+export async function fetchAudienceAnomalies(companyId: string, threshold: number = 2.0): Promise<AudienceAnomaliesResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audience_anomalies?threshold=${threshold}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audience anomalies: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching audience anomalies:', error);
+    throw error;
+  }
+}
+
+
+
+/**
  * Fetch channel data for a specific company
  */
-export async function fetchCompanyChannels(companyId: string, includeAnomalies: boolean = false): Promise<ChannelResponse> {
+export async function fetchCompanyChannels(companyId: string, includeMetrics: boolean = false): Promise<ChannelResponse> {
   try {
-    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels?include_anomalies=${includeAnomalies}`);
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels?include_metrics=${includeMetrics}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch channels: ${response.status}`);
     }
@@ -221,26 +446,17 @@ export async function fetchChannelPerformanceMatrix(companyId: string): Promise<
   }
 }
 
-/**
- * Fetch audience anomalies for a specific company
- */
-export async function fetchAudienceAnomalies(companyId: string): Promise<any> {
-  try {
-    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/audience_anomalies`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch audience anomalies: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching audience anomalies:', error);
-    throw error;
-  }
-}
+
 
 /**
  * Fetch channel anomalies for a specific company
  */
-export async function fetchChannelAnomalies(companyId: string): Promise<any> {
+interface ChannelAnomalyResponse {
+  company: string;
+  anomalies: MetricPoint[];
+}
+
+export async function fetchChannelAnomalies(companyId: string): Promise<ChannelAnomalyResponse> {
   try {
     const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channel_anomalies`);
     if (!response.ok) {
@@ -291,8 +507,11 @@ export async function askQuestion(question: string, companyId: string): Promise<
     }
     
     return await response.json();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error processing query:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('An unknown error occurred while processing the query');
   }
 }

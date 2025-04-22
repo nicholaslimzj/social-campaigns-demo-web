@@ -16,16 +16,22 @@ export async function GET() {
     
     // Return just the companies array to match what the frontend expects
     return NextResponse.json(response.data.companies || []);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching companies:', error);
     
-    // More detailed error reporting
-    const status = error.response?.status || 500;
-    const message = error.response?.data?.error || error.message || 'Failed to fetch companies';
+    // Type guard for axios errors
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status || 500;
+      const message = error.response?.data?.error || error.message || 'Failed to fetch companies';
+      
+      return NextResponse.json({ error: message }, { status });
+    }
     
+    // For non-axios errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: message },
-      { status }
+      { error: `Failed to fetch companies: ${errorMessage}` },
+      { status: 500 }
     );
   }
 }

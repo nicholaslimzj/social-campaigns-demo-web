@@ -8,21 +8,19 @@ export async function GET(
   { params }: { params: Promise<{ company: string }> }
 ) {
   const { company } = await params;
-  const { searchParams } = new URL(request.url);
-  const includeMetrics = searchParams.get('include_metrics') === 'true';
   
   try {
     const response = await axios.get(
-      `${API_BASE_URL}/api/companies/${encodeURIComponent(company)}/audiences?include_metrics=${includeMetrics}`
+      `${API_BASE_URL}/api/companies/${encodeURIComponent(company)}/audiences/benchmarks`
     );
     return NextResponse.json(response.data);
   } catch (error: unknown) {
-    console.error('Error fetching audiences:', error);
+    console.error('Error fetching audience benchmarks:', error);
     
     // Type guard for axios errors
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
-      const message = error.response?.data?.error || error.message || 'Failed to fetch audiences';
+      const message = error.response?.data?.error || error.message || 'Failed to fetch audience benchmarks';
       
       return NextResponse.json({ error: message }, { status });
     }
@@ -30,7 +28,7 @@ export async function GET(
     // For non-axios errors
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: `Failed to fetch audiences: ${errorMessage}` },
+      { error: `Failed to fetch audience benchmarks: ${errorMessage}` },
       { status: 500 }
     );
   }
