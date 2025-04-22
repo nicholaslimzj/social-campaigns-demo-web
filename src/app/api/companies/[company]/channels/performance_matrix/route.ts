@@ -8,11 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ company: string }> }
 ) {
   const { company } = await params;
+  const { searchParams } = new URL(request.url);
+  const dimensionType = searchParams.get('dimension_type');
   
   try {
-    const response = await axios.get(
-      `${API_BASE_URL}/api/companies/${encodeURIComponent(company)}/channel_performance_matrix`
-    );
+    const url = dimensionType
+      ? `${API_BASE_URL}/api/companies/${encodeURIComponent(company)}/channels/performance_matrix?dimension_type=${dimensionType}`
+      : `${API_BASE_URL}/api/companies/${encodeURIComponent(company)}/channels/performance_matrix`;
+    
+    const response = await axios.get(url);
     return NextResponse.json(response.data);
   } catch (error: unknown) {
     console.error('Error fetching channel performance matrix:', error);

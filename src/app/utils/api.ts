@@ -92,6 +92,20 @@ export interface AudienceBenchmark {
   conversion_performance: 'excellent' | 'good' | 'average' | 'below_average';
   ctr_performance: 'excellent' | 'good' | 'average' | 'below_average';
   acquisition_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  company_roi: number;
+  company_conversion_rate: number;
+  company_ctr: number;
+  company_acquisition_cost: number;
+  industry_roi: number;
+  industry_conversion_rate: number;
+  industry_ctr: number;
+  industry_acquisition_cost: number;
+  acquisition_percentile: number;
+  conversion_percentile: number;
+  ctr_percentile: number;
+  roi_percentile: number;
+  has_anomaly: boolean;
+  anomaly_description: string | null;
 }
 
 export interface AudienceBenchmarksResponse {
@@ -132,6 +146,14 @@ export interface Channel {
   avg_acquisition_cost: number;
   avg_ctr: number;
   campaign_count: number;
+  total_spend?: number;
+  total_revenue?: number;
+  industry_benchmarks?: {
+    roi: number;
+    conversion_rate: number;
+    acquisition_cost: number;
+    ctr: number;
+  };
 }
 
 export interface ChannelResponse {
@@ -139,18 +161,48 @@ export interface ChannelResponse {
   channels: Channel[];
 }
 
+export interface ChannelBenchmark {
+  channel_id: string;
+  overall_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  roi_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  conversion_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  ctr_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  acquisition_performance: 'excellent' | 'good' | 'average' | 'below_average';
+  company_roi: number;
+  company_conversion_rate: number;
+  company_ctr: number;
+  company_acquisition_cost: number;
+  industry_roi: number;
+  industry_conversion_rate: number;
+  industry_ctr: number;
+  industry_acquisition_cost: number;
+  acquisition_percentile: number;
+  conversion_percentile: number;
+  ctr_percentile: number;
+  roi_percentile: number;
+  has_anomaly: boolean;
+  anomaly_description: string | null;
+}
+
+export interface ChannelBenchmarksResponse {
+  channels: ChannelBenchmark[];
+  industry: string;
+}
+
 export interface ChannelPerformanceMatrix {
-  company: string;
-  matrix: {
-    rows: string[];
-    columns: string[];
-    values: {
-      row: string;
-      column: string;
-      conversion_rate: number;
-      roi: number;
-    }[];
-  };
+  company?: string;
+  matrix: Array<{
+    channel_id: string; // Channel name
+    dimensions: Array<{
+      dimension_value: string;
+      metrics: {
+        roi: number;
+        conversion_rate: number;
+        acquisition_cost: number;
+        ctr: number;
+      };
+    }>;
+  }>;
 }
 
 export interface CampaignDurationBucket {
@@ -181,6 +233,8 @@ export interface CampaignDurationResponse {
   };
 }
 
+
+
 // Define a type for the query result data which can be various shapes
 type QueryResultData = Record<string, unknown> | Array<Record<string, unknown>> | null;
 
@@ -208,28 +262,7 @@ export interface AudienceClustersResponse {
   clusters: AudienceCluster[];
 }
 
-export interface AudienceBenchmark {
-  audience_id: string;
-  company_acquisition_cost: number;
-  company_conversion_rate: number;
-  company_ctr: number;
-  company_roi: number;
-  industry_acquisition_cost: number;
-  industry_conversion_rate: number;
-  industry_ctr: number;
-  industry_roi: number;
-  acquisition_percentile: number;
-  conversion_percentile: number;
-  ctr_percentile: number;
-  roi_percentile: number;
-  acquisition_performance: string;
-  conversion_performance: string;
-  ctr_performance: string;
-  roi_performance: string;
-  overall_performance: string;
-  has_anomaly: boolean;
-  anomaly_description: string | null;
-}
+
 
 export interface AudienceBenchmarksResponse {
   audiences: AudienceBenchmark[];
@@ -433,9 +466,13 @@ export async function fetchCompanyChannels(companyId: string, includeMetrics: bo
 /**
  * Fetch channel performance matrix for a specific company
  */
-export async function fetchChannelPerformanceMatrix(companyId: string): Promise<ChannelPerformanceMatrix> {
+export async function fetchChannelPerformanceMatrix(companyId: string, dimensionType?: string): Promise<ChannelPerformanceMatrix> {
   try {
-    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channel_performance_matrix`);
+    const url = dimensionType
+      ? `${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels/performance_matrix?dimension_type=${dimensionType}`
+      : `${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels/performance_matrix`;
+    
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch channel performance matrix: ${response.status}`);
     }
@@ -447,6 +484,84 @@ export async function fetchChannelPerformanceMatrix(companyId: string): Promise<
 }
 
 
+
+/**
+ * Fetch channel benchmarks for a specific company
+ */
+export async function fetchChannelBenchmarks(companyId: string): Promise<ChannelBenchmarksResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels/benchmarks`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch channel benchmarks: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching channel benchmarks:', error);
+    throw error;
+  }
+}
+
+/**
+ * Channel Monthly Metrics Response interface
+ */
+export interface ChannelMonthlyMetricsResponse {
+  channels: {
+    channel_id: string;
+    monthly_metrics: {
+      month: number;
+      roi: number;
+      conversion_rate: number;
+      acquisition_cost: number;
+      ctr: number;
+      total_spend: number;
+      total_revenue: number;
+      campaign_count: number;
+      clicks: number;
+      impressions: number;
+      efficiency_ratio?: number;
+      channel_share?: number;
+      channel_count?: number;
+      changes?: {
+        roi: number | null;
+        conversion_rate: number | null;
+        acquisition_cost: number | null;
+        ctr: number | null;
+      };
+    }[];
+  }[];
+}
+
+/**
+ * Fetch monthly metrics data for channels
+ */
+export async function fetchChannelMonthlyMetrics(companyId: string): Promise<ChannelMonthlyMetricsResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels/monthly_metrics`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch channel monthly metrics: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching channel monthly metrics:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch channel efficiency data (ROI and spend) for a specific company
+ */
+export async function fetchChannelEfficiency(companyId: string): Promise<ChannelResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels/efficiency`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch channel efficiency data: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching channel efficiency data:', error);
+    throw error;
+  }
+}
 
 /**
  * Fetch channel anomalies for a specific company
@@ -481,6 +596,50 @@ export async function fetchCampaignDurationAnalysis(companyId: string): Promise<
     return await response.json();
   } catch (error) {
     console.error('Error fetching campaign duration analysis:', error);
+    throw error;
+  }
+}
+
+/**
+ * Channel Budget Optimizer interfaces
+ */
+export interface ChannelBudgetAllocation {
+  channel_id: string;
+  amount: number;
+  percentage: number;
+  roi: number;
+  change_direction?: string;
+  change_strength?: string;
+}
+
+export interface ChannelBudgetOptimizerResponse {
+  current_allocation: ChannelBudgetAllocation[];
+  optimized_allocation: ChannelBudgetAllocation[];
+  optimization_metrics: {
+    total_budget: number;
+    optimization_goal: string;
+    projected_improvement: number;
+  };
+}
+
+/**
+ * Fetch channel budget optimizer data
+ */
+export async function fetchChannelBudgetOptimizer(
+  companyId: string,
+  totalBudget: number = 0,
+  optimizationGoal: string = 'roi'
+): Promise<ChannelBudgetOptimizerResponse> {
+  try {
+    const response = await fetch(
+      `${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/channels/budget_optimizer?total_budget=${totalBudget}&optimization_goal=${optimizationGoal}`
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch channel budget optimizer data: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching channel budget optimizer data:', error);
     throw error;
   }
 }

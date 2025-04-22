@@ -333,8 +333,6 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
             >
               <option value="roi">ROI</option>
               <option value="conversion">Conversion Rate</option>
-              <option value="acquisition">Avg Campaign Cost</option>
-              <option value="ctr">CTR</option>
             </select>
           </div>
         </div>
@@ -451,7 +449,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
             {error.clusters}
           </div>
         ) : clusters.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
@@ -469,7 +467,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
                   .filter(cluster => cluster.cluster_type === audienceClusterType)
                   .slice(0, 5)
                   .map((cluster, index) => (
-                    <tr key={cluster.cluster_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <tr key={`${audienceClusterType}-${cluster.cluster_id}-${index}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {cluster.audiences[0]}
                       </td>
@@ -543,25 +541,23 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
             >
               <option value="roi">ROI</option>
               <option value="conversion">Conversion Rate</option>
-              <option value="acquisition">Avg Campaign Cost</option>
-              <option value="ctr">CTR</option>
             </select>
           </div>
         </div>
         
         {loading.matrix ? (
-          <div className="h-96 flex items-center justify-center">
+          <div className="py-12 flex items-center justify-center">
             <div className="animate-pulse text-blue-500">Loading performance matrix data...</div>
           </div>
         ) : error.matrix ? (
-          <div className="h-96 flex items-center justify-center text-red-500">
+          <div className="py-12 flex items-center justify-center text-red-500">
             {error.matrix}
           </div>
         ) : performanceMatrix && performanceMatrix.matrix && performanceMatrix.matrix.length > 0 ? (
-          <div className="overflow-x-auto">
-            <div className="min-w-full h-96">
+          <div>
+            <div className="min-w-full">
               <div className="grid grid-cols-1 gap-4">
-                <div className="overflow-x-auto">
+                <div>
                   <table className="min-w-full border-collapse">
                     <thead>
                       <tr>
@@ -585,31 +581,21 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
                             if (audienceMatrixMetric === 'roi') {
                               metricValue = dimension.metrics.roi;
                               // Higher ROI is better (green)
-                              const intensity = Math.min(1, metricValue / 5) * 100; // Scale ROI to 0-100%
-                              bgColor = `rgba(16, 185, 129, ${intensity / 100})`;
-                              textColor = intensity > 50 ? 'text-white' : 'text-gray-900';
-                            } else if (audienceMatrixMetric === 'conversion') {
-                              metricValue = dimension.metrics.conversion_rate;
-                              // Higher conversion is better (blue)
-                              const intensity = Math.min(1, metricValue * 10) * 100; // Scale conversion (0-1) to 0-100%
-                              bgColor = `rgba(59, 130, 246, ${intensity / 100})`;
-                              textColor = intensity > 50 ? 'text-white' : 'text-gray-900';
-                            } else if (audienceMatrixMetric === 'acquisition') {
-                              metricValue = dimension.metrics.acquisition_cost;
-                              // Lower avg campaign cost is better (reverse scale - yellow to red)
-                              // Calculate min and max values for better scaling
-                              const minCost = 6000; // Minimum expected cost
-                              const maxCost = 10000; // Maximum expected cost
-                              // Scale between min and max, clamping values outside the range
-                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minCost) / (maxCost - minCost)));
-                              bgColor = `rgba(239, 68, 68, ${normalizedValue})`;
+                              // Scale ROI from 2-7 range
+                              const minROI = 2;
+                              const maxROI = 7;
+                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
+                              bgColor = `rgba(16, 185, 129, ${normalizedValue})`;
                               textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
                             } else {
-                              metricValue = dimension.metrics.ctr;
-                              // Higher CTR is better (purple)
-                              const intensity = Math.min(1, metricValue * 20) * 100; // Scale CTR (0-1) to 0-100%
-                              bgColor = `rgba(139, 92, 246, ${intensity / 100})`;
-                              textColor = intensity > 50 ? 'text-white' : 'text-gray-900';
+                              metricValue = dimension.metrics.conversion_rate;
+                              // Higher conversion is better (blue)
+                              // Scale conversion from 7-14% range (0.07-0.14)
+                              const minConversion = 0.07;
+                              const maxConversion = 0.14;
+                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
+                              bgColor = `rgba(59, 130, 246, ${normalizedValue})`;
+                              textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
                             }
                             
                             return (
@@ -620,8 +606,6 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
                               >
                                 {audienceMatrixMetric === 'roi' && `${metricValue.toFixed(1)}x`}
                                 {audienceMatrixMetric === 'conversion' && `${(metricValue * 100).toFixed(1)}%`}
-                                {audienceMatrixMetric === 'acquisition' && `$${metricValue.toFixed(2)}`}
-                                {audienceMatrixMetric === 'ctr' && `${(metricValue * 100).toFixed(2)}%`}
                               </td>
                             );
                           })}
@@ -637,10 +621,8 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
                 <p className="text-gray-700">
                   This heatmap visualizes performance metrics across different audience segments and dimensions. 
                   Dimensions are grouped by {audienceMatrixDimension === 'goal' ? 'campaign goals' : audienceMatrixDimension === 'location' ? 'geographic locations' : 'languages'}.
-                  {audienceMatrixMetric === 'roi' && ' Darker green indicates higher ROI.'}
-                  {audienceMatrixMetric === 'conversion' && ' Darker blue indicates higher conversion rates.'}
-                  {audienceMatrixMetric === 'acquisition' && ' Darker red indicates higher avg campaign costs (less optimal).'}
-                  {audienceMatrixMetric === 'ctr' && ' Darker purple indicates higher click-through rates.'}
+                  {audienceMatrixMetric === 'roi' && ' Darker green indicates higher ROI (scaled for 2-7x range).'}
+                  {audienceMatrixMetric === 'conversion' && ' Darker blue indicates higher conversion rates (scaled for 7-14% range).'}
                 </p>
               </div>
               
@@ -648,7 +630,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
             </div>
           </div>
         ) : (
-          <div className="h-96 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+          <div className="py-12 bg-gray-100 rounded flex items-center justify-center text-gray-500">
             <p>No performance matrix data available.</p>
           </div>
         )}
@@ -661,15 +643,15 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
         </div>
         
         {loading.benchmarks ? (
-          <div className="h-64 flex items-center justify-center">
+          <div className="flex items-center justify-center">
             <div className="animate-pulse text-blue-500">Loading benchmark data...</div>
           </div>
         ) : error.benchmarks ? (
-          <div className="h-64 flex items-center justify-center text-red-500">
+          <div className="py-8 flex items-center justify-center text-red-500">
             {error.benchmarks}
           </div>
         ) : benchmarks && benchmarks.audiences && benchmarks.audiences.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
@@ -792,7 +774,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
             </div>
           </div>
         ) : (
-          <div className="h-64 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+          <div className="py-8 bg-gray-100 rounded flex items-center justify-center text-gray-500">
             <p>No benchmark data available</p>
           </div>
         )}

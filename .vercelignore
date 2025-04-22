@@ -19,6 +19,10 @@ out
 # Misc
 .DS_Store
 *.log
+
+# Backup
+backup/
+*.bak
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

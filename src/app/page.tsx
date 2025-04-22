@@ -24,6 +24,7 @@ import TimeSeriesChart from './components/TimeSeriesChart';
 import TabNavigation from './components/TabNavigation';
 import QueryInterface from './components/QueryInterface';
 import CohortAnalysis from './components/CohortAnalysis';
+import ChannelAnalysis from './components/ChannelAnalysis';
 
 export default function Home() {
   // State for company selection and navigation
@@ -131,12 +132,12 @@ export default function Home() {
   const kpiData = (() => {
     if (!monthlyMetrics?.metrics) return null;
     
-    const getLatestValue = (metricArray: { value: number; month: string }[]) => {
-      return metricArray.length > 0 ? metricArray[metricArray.length - 1].value : 0;
+    const getLatestValue = (metricArray: { value: number; month: string }[] | undefined) => {
+      return metricArray && metricArray.length > 0 ? metricArray[metricArray.length - 1].value : 0;
     };
     
-    const calculateChange = (metricArray: { value: number; month: string }[]) => {
-      if (metricArray.length < 2) return 0;
+    const calculateChange = (metricArray: { value: number; month: string }[] | undefined) => {
+      if (!metricArray || metricArray.length < 2) return 0;
       const current = metricArray[metricArray.length - 1].value;
       const previous = metricArray[metricArray.length - 2].value;
       return previous !== 0 ? (current - previous) / previous : 0;
@@ -153,10 +154,10 @@ export default function Home() {
         change: calculateChange(monthlyMetrics.metrics.roi),
         trend: calculateChange(monthlyMetrics.metrics.roi) >= 0 ? 'up' : 'down'
       },
-      acquisitionCost: { 
-        value: getLatestValue(monthlyMetrics.metrics.acquisition_cost),
-        change: calculateChange(monthlyMetrics.metrics.acquisition_cost),
-        trend: calculateChange(monthlyMetrics.metrics.acquisition_cost) <= 0 ? 'up' : 'down'
+      cac: { 
+        value: getLatestValue(monthlyMetrics.metrics.cac),
+        change: calculateChange(monthlyMetrics.metrics.cac),
+        trend: calculateChange(monthlyMetrics.metrics.cac) <= 0 ? 'up' : 'down'
       },
       ctr: { 
         value: getLatestValue(monthlyMetrics.metrics.ctr),
@@ -165,7 +166,7 @@ export default function Home() {
       },
       revenue: {
         value: monthlyMetrics.metrics.revenue ? 
-          getLatestValue(monthlyMetrics.metrics.revenue) / 1000 : 0, // Convert to K (thousands)
+          getLatestValue(monthlyMetrics.metrics.revenue) / 1000000 : 0, // Convert to M (millions)
         change: monthlyMetrics.metrics.revenue ? 
           calculateChange(monthlyMetrics.metrics.revenue) : 0,
         trend: monthlyMetrics.metrics.revenue && 
@@ -319,11 +320,11 @@ export default function Home() {
               trend={kpiData.roi.trend} 
             />
             <KPICard 
-              title="Acquisition Cost" 
-              value={kpiData.acquisitionCost.value} 
+              title="Customer Acquisition Cost" 
+              value={kpiData.cac.value} 
               format="currency" 
-              change={kpiData.acquisitionCost.change} 
-              trend={kpiData.acquisitionCost.trend} 
+              change={kpiData.cac.change} 
+              trend={kpiData.cac.trend} 
             />
             <KPICard 
               title="CTR" 
@@ -333,7 +334,7 @@ export default function Home() {
               trend={kpiData.ctr.trend} 
             />
             <KPICard 
-              title="Revenue (K)" 
+              title="Revenue (M)" 
               value={kpiData.revenue.value} 
               format="decimal" 
               change={kpiData.revenue.change} 
@@ -460,10 +461,11 @@ export default function Home() {
         )}
 
         {activeTab === 'channel' && (
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Channel Analysis</h3>
-            <p className="text-gray-500">Channel analysis content will be implemented in a future update.</p>
-          </div>
+          <ChannelAnalysis 
+            audiences={audiences} 
+            channels={channels} 
+            companyId={selectedCompany} 
+          />
         )}
 
         {activeTab === 'campaign' && (
