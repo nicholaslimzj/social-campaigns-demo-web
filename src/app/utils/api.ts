@@ -671,6 +671,58 @@ export interface CampaignClustersResponse {
   high_conversion: CampaignClusterItem[];
 }
 
+/**
+ * Campaign Performance Data interface
+ */
+export interface CampaignPerformanceData {
+  campaign_id: string;
+  goal: string;
+  channel: string;
+  segment: string;
+  roi: number;
+  conversion_rate: number;
+  revenue: number;
+  spend: number;
+  cpa: number;
+  acquisition_cost: number;
+  ctr: number;
+  clicks: number;
+  impressions: number;
+  roi_rank: number;
+  conversion_rank: number;
+  revenue_rank: number;
+  cpa_rank: number;
+  performance_tier: string;
+  recommended_action: string;
+}
+
+/**
+ * Campaign Performance Rankings Response interface
+ */
+export interface CampaignPerformanceRankingsResponse {
+  company: string;
+  top_campaigns: {
+    roi: CampaignPerformanceData[];
+    conversion_rate: CampaignPerformanceData[];
+    revenue: CampaignPerformanceData[];
+    cpa: CampaignPerformanceData[];
+  };
+  bottom_campaigns: {
+    roi: CampaignPerformanceData[];
+    conversion_rate: CampaignPerformanceData[];
+    revenue: CampaignPerformanceData[];
+    cpa: CampaignPerformanceData[];
+  };
+  error?: string;
+}
+
+export interface CompanyInsightResponse {
+  company: string;
+  insight: string;
+  generated_at: string;
+  source: string;
+}
+
 export interface CampaignForecastResponse {
   company: string;
   metric: string;
@@ -699,6 +751,42 @@ export async function fetchCampaignClusters(companyId: string, limit: number = 5
     return await response.json();
   } catch (error) {
     console.error('Error fetching campaign clusters:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch campaign performance rankings for a specific company
+ */
+export async function fetchCampaignPerformanceRankings(companyId: string, limit: number = 5): Promise<CampaignPerformanceRankingsResponse> {
+  try {
+    const response = await fetch(`/api/companies/${encodeURIComponent(companyId)}/campaign_performance_rankings?limit=${limit}`);
+    
+    if (!response.ok) {
+      throw new Error(`Error fetching campaign performance rankings: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching campaign performance rankings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch company insights for a specific company
+ */
+export async function fetchCompanyInsights(companyId: string): Promise<CompanyInsightResponse> {
+  try {
+    const response = await fetch(`/api/companies/${encodeURIComponent(companyId)}/insights`);
+    
+    if (!response.ok) {
+      throw new Error(`Error fetching company insights: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching company insights:', error);
     throw error;
   }
 }

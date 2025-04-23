@@ -6,12 +6,14 @@ import {
   fetchCompanyMonthlyMetrics,
   fetchCompanyAudiences,
   fetchCompanyChannels,
+  fetchCompanyInsights,
   askQuestion,
   Company,
   CompanyMetrics,
   AudienceResponse,
   ChannelResponse,
-  QueryResult
+  QueryResult,
+  CompanyInsightResponse
 } from './utils/api';
 
 // Import components
@@ -44,6 +46,12 @@ export default function Home() {
   const [question, setQuestion] = useState<string>('');
   const [queryResults, setQueryResults] = useState<QueryResult | null>(null);
   const [queryLoading, setQueryLoading] = useState<boolean>(false);
+  
+  // State for insights
+  const [insightHtml, setInsightHtml] = useState<string>('');
+  const [insightLoading, setInsightLoading] = useState<boolean>(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [insightLastUpdated, setInsightLastUpdated] = useState<string>('');
 
   // Fetch companies on initial load
   useEffect(() => {
@@ -91,7 +99,32 @@ export default function Home() {
     };
     
     loadCompanyData();
+    loadCompanyInsights();
   }, [selectedCompany]);
+  
+  // Load insights for the selected company
+  const loadCompanyInsights = async () => {
+    if (!selectedCompany) return;
+    
+    setInsightLoading(true);
+    setInsightError(null);
+    
+    try {
+      const response = await fetchCompanyInsights(selectedCompany);
+      setInsightHtml(response.insight);
+      setInsightLastUpdated(new Date(response.generated_at).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }));
+    } catch (err) {
+      console.error('Failed to fetch insights:', err);
+      setInsightError('Unable to load insights');
+      setInsightHtml('');
+    } finally {
+      setInsightLoading(false);
+    }
+  };
   
   // Handle company selection
   const handleCompanyChange = (company: string) => {
@@ -251,8 +284,8 @@ export default function Home() {
     );
   }
 
-  // Get company insights
-  const companyInsight = selectedCompany ? getCompanyInsights(selectedCompany) : null;
+  // No longer need this as we're using the API
+  // const companyInsight = selectedCompany ? getCompanyInsights(selectedCompany) : null;
 
   return (
     <div className="container mx-auto px-4 py-8 bg-white min-h-screen">
@@ -270,31 +303,42 @@ export default function Home() {
       </div>
 
       {/* Key Insights Panel */}
-      {companyInsight && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold">Key Insights</h2>
-            <span className="text-sm text-gray-500">Last updated: Apr 16, 2025</span>
-          </div>
-          <p className="text-gray-700">
-            {selectedCompany} has seen a <span className="text-green-500 font-medium">70% increase in conversion rates</span> this month, 
-            driven by strong performance in the <span className="text-blue-500">Tech Enthusiasts</span> segment.
-            {companyInsight.anomaly && (
-              <span className="text-red-500 ml-1">
-                <span className="inline-block h-2 w-2 bg-red-500 rounded-full mr-1"></span>
-                An anomaly was detected
-              </span>
-            )} 
-            {companyInsight.anomaly && (
-              <span> in {companyInsight.anomaly.month} with a {Math.abs(companyInsight.anomaly.value)}% drop in {companyInsight.anomaly.metric}.</span>
-            )}
-            <span className="block mt-1">
-              Your acquisition costs are <span className="text-green-500 font-medium">15% lower</span> than industry average, 
-              and after 3 months of decline, ROI is now trending upward.
-            </span>
-          </p>
+      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-lg font-semibold text-gray-800">Key Insights</h2>
+          {insightLastUpdated && <span className="text-sm text-gray-500">Last updated: {insightLastUpdated}</span>}
         </div>
-      )}
+        <div className="text-gray-700">
+          {insightLoading ? (
+            <div className="flex justify-center items-center min-h-[80px]">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            </div>
+          ) : insightError ? (
+            <div className="text-red-500 min-h-[80px] flex items-center">
+              <p>{insightError}</p>
+            </div>
+          ) : insightHtml ? (
+            <div className="relative min-h-[80px]">
+              <div dangerouslySetInnerHTML={{ __html: insightHtml }} />
+              {monthlyMetrics?.anomalies?.conversion_rate && monthlyMetrics.anomalies.conversion_rate.length > 0 && (
+                <div className="mt-2 text-red-500">
+                  <span className="inline-block h-2 w-2 bg-red-500 rounded-full mr-1"></span>
+                  An anomaly was detected in {monthlyMetrics.anomalies.conversion_rate[0].month} with a 
+                  {Math.abs(monthlyMetrics.anomalies.conversion_rate[0].value)}% 
+                  {monthlyMetrics.anomalies.conversion_rate[0].value < 0 ? 'drop' : 'spike'} in conversion rate.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="min-h-[80px] flex items-center">
+              <p className="text-gray-700">
+                {selectedCompany} is showing positive performance trends across key metrics. 
+                Analyze the dashboard for detailed insights on audience and channel performance.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
@@ -329,9 +373,10 @@ export default function Home() {
               trend={kpiData.ctr.trend} 
             />
             <KPICard 
-              title="Revenue (M)" 
+              title="Revenue" 
               value={kpiData.revenue.value} 
               format="decimal" 
+              suffix="M" 
               change={kpiData.revenue.change} 
               trend={kpiData.revenue.trend} 
             />
@@ -414,6 +459,8 @@ export default function Home() {
                         }
                       }
                     ]}
+                    sortBy="avg_roi"
+                    sortDirection="desc"
                     limit={3}
                   />
                 )}
@@ -439,6 +486,8 @@ export default function Home() {
                         }
                       }
                     ]}
+                    sortBy="avg_roi"
+                    sortDirection="desc"
                     limit={3}
                   />
                 )}

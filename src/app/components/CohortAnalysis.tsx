@@ -411,10 +411,10 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
         <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
           <div className="font-medium mb-1">Trend Analysis:</div>
           <p className="text-gray-700">
-            This chart shows the {audienceTrendMetric === 'roi' && 'Return on Investment (ROI)'}
-            {audienceTrendMetric === 'conversion' && 'Conversion Rate'}
-            {audienceTrendMetric === 'acquisition' && 'Acquisition Cost'}
-            {audienceTrendMetric === 'ctr' && 'Click-Through Rate (CTR)'} 
+            This chart shows the {audienceTrendMetric === 'roi' && 'Return on Investment (ROI) '}
+            {audienceTrendMetric === 'conversion' && 'Conversion Rate '}
+            {audienceTrendMetric === 'acquisition' && 'Acquisition Cost '}
+            {audienceTrendMetric === 'ctr' && 'Click-Through Rate (CTR) '} 
             trends for each audience segment over time. 
             {audienceTrendMetric === 'roi' && ' Higher values indicate better performance.'}
             {audienceTrendMetric === 'conversion' && ' Higher percentages indicate better performance.'}
@@ -513,7 +513,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
           <div className="font-medium mb-1">Cluster Analysis:</div>
           <p className="text-gray-700">
             This table shows the top performing audience segments based on 
-            {audienceClusterType === 'roi' ? 'Return on Investment (ROI)' : 'Conversion Rate'}. 
+            {audienceClusterType === 'roi' ? ' Return on Investment (ROI)' : ' Conversion Rate'}. 
             These audiences represent your most valuable customer segments for targeted campaigns.
             The "VS Company Avg" column shows the percentage difference between each audience's performance and the company average. For ROI clusters, it compares ROI values, while for conversion clusters, it compares conversion rates.
           </p>
@@ -734,6 +734,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
               <p className="text-gray-700">
                 This table compares your audience performance against industry benchmarks. 
                 Performance is rated as Excellent, Good, Average, or Below Average based on multiple metrics.
+                <span className="ml-1 inline-flex items-center"><span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1"></span> Red dots indicate audience segments with detected anomalies that may require attention.</span>
               </p>
               {benchmarks.audiences.length > 0 && (
                 <div className="mt-2">

@@ -28,7 +28,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
   // State for dropdown selections
   const [channelMatrixDimension, setChannelMatrixDimension] = useState<string>('goal');
   const [channelMatrixMetric, setChannelMatrixMetric] = useState<string>('roi');
-  const [channelTrendMetric, setChannelTrendMetric] = useState<string>('roi');
+  const [channelTrendMetric, setChannelTrendMetric] = useState<string>('cpa');
 
   // State for API data
   const [performanceMatrix, setPerformanceMatrix] = useState<ChannelPerformanceMatrix | null>(null);
@@ -192,6 +192,10 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
   const calculateDiff = (companyValue: number, industryValue: number) => {
     return ((companyValue - industryValue) / industryValue) * 100;
   };
+  
+  const formatCurrencyK = (value: number) => {
+    return `${(value / 1000).toFixed(2)}K`;
+  };
 
   // Transform monthly metrics data for the chart
   const transformedChartData = React.useMemo(() => {
@@ -232,10 +236,14 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
             value = metric.conversion_rate;
             break;
           case 'cpa':
-            // Cost Per Acquisition = acquisition_cost / (clicks * conversion_rate)
+            // Customer Acquisition Cost = (acquisition_cost * campaign_count) / (clicks * conversion_rate)
+            // This accounts for the total spend across all campaigns
             // If clicks or conversion_rate is 0, use acquisition_cost directly to avoid division by zero
             if (metric.clicks && metric.clicks > 0 && metric.conversion_rate && metric.conversion_rate > 0) {
-              value = metric.acquisition_cost / (metric.clicks * metric.conversion_rate);
+              // Multiply acquisition_cost by campaign_count to get total spend before dividing
+              const totalSpend = metric.acquisition_cost * (metric.campaign_count || 1);
+              const estimatedConversions = metric.clicks * metric.conversion_rate;
+              value = totalSpend / estimatedConversions;
             } else {
               value = metric.acquisition_cost;
             }
@@ -267,8 +275,13 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
       case 'ctr':
         return `${(value * 100).toFixed(1)}%`;
       case 'acquisition':
-      case 'spend':
+      case 'cpa':
         return `$${value.toFixed(2)}`;
+      case 'spend':
+        // Format with K for thousands
+        return value >= 1000 
+          ? `$${formatCurrencyK(value)}` 
+          : `$${value.toFixed(2)}`;
       default:
         return value.toFixed(2);
     }
@@ -323,10 +336,10 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
               value={channelTrendMetric}
               onChange={(e) => setChannelTrendMetric(e.target.value)}
             >
+              <option value="cpa">Customer Acquisition Cost</option>
+              <option value="spend">Total Spend</option>
               <option value="roi">ROI</option>
               <option value="conversion">Conversion Rate</option>
-              <option value="cpa">Cost Per Acquisition</option>
-              <option value="spend">Total Spend</option>
             </select>
           </div>
         </div>
@@ -363,8 +376,13 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                       case 'ctr':
                         return `${(tick * 100).toFixed(1)}%`;
                       case 'acquisition':
+                      case 'cpa':
+                        return `$${tick.toFixed(2)}`;
                       case 'spend':
-                        return `$${tick.toFixed(0)}`;
+                        // Format with K for thousands
+                        return tick >= 1000 
+                          ? `$${(tick / 1000).toFixed(2)}K` 
+                          : `$${tick.toFixed(2)}`;
                       default:
                         return tick;
                     }
@@ -406,14 +424,14 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
         <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
           <div className="font-medium mb-1">Trend Analysis:</div>
           <p className="text-gray-700">
-            This chart shows the {channelTrendMetric === 'roi' && 'Return on Investment (ROI)'}
-            {channelTrendMetric === 'conversion' && 'Conversion Rate'}
-            {channelTrendMetric === 'cpa' && 'Cost Per Acquisition'}
-            {channelTrendMetric === 'spend' && 'Spend'} 
+            This chart shows the {channelTrendMetric === 'roi' && 'ROI '}
+            {channelTrendMetric === 'conversion' && 'Conversion Rate '}
+            {channelTrendMetric === 'cpa' && 'Customer Acquisition Cost '}
+            {channelTrendMetric === 'spend' && 'Spend '} 
             trends for each marketing channel over time. 
             {channelTrendMetric === 'roi' && ' Higher values indicate better performance.'}
             {channelTrendMetric === 'conversion' && ' Higher percentages indicate better performance.'}
-            {channelTrendMetric === 'cpa' && ' Lower costs indicate better performance. This is calculated as acquisition cost divided by (clicks × conversion rate).'}
+            {channelTrendMetric === 'cpa' && ' Lower costs indicate better performance. This is calculated as (acquisition cost × campaign count) divided by (clicks × conversion rate).'}
             {channelTrendMetric === 'spend' && ' This shows your budget allocation across channels over time.'}
           </p>
         </div>
@@ -482,41 +500,22 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                             
                             if (channelMatrixMetric === 'roi') {
                               metricValue = dimension.metrics.roi;
-                              // Higher ROI is better
-                              // Use different color schemes based on dimension type
-                              if (channelMatrixDimension === 'goal') {
-                                // Green for goals dimension - Scale ROI from 2-7 range
-                                const minROI = 2;
-                                const maxROI = 7;
-                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
-                                bgColor = `rgba(16, 185, 129, ${normalizedValue})`; // Green
-                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
-                              } else {
-                                // Purple for target audience dimension - Scale ROI from 1.5-6 range
-                                const minROI = 1.5;
-                                const maxROI = 6;
-                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
-                                bgColor = `rgba(139, 92, 246, ${normalizedValue})`; // Purple
-                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
-                              }
-                            } else {
+                              // Higher ROI is better (green)
+                              // Scale ROI from 2-7 range
+                              const minROI = 2;
+                              const maxROI = 7;
+                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
+                              bgColor = `rgba(16, 185, 129, ${normalizedValue})`; // Green
+                              textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                            } else if (channelMatrixMetric === 'conversion') {
                               metricValue = dimension.metrics.conversion_rate;
-                              // Higher conversion is better
-                              if (channelMatrixDimension === 'goal') {
-                                // Blue for goals dimension - Scale conversion from 7-14% range (0.07-0.14)
-                                const minConversion = 0.07;
-                                const maxConversion = 0.14;
-                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
-                                bgColor = `rgba(59, 130, 246, ${normalizedValue})`; // Blue
-                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
-                              } else {
-                                // Orange for target audience dimension - Scale conversion from 5-12% range (0.05-0.12)
-                                const minConversion = 0.05;
-                                const maxConversion = 0.12;
-                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
-                                bgColor = `rgba(249, 115, 22, ${normalizedValue})`; // Orange
-                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
-                              }
+                              // Higher conversion is better (blue)
+                              // Scale conversion from 7-14% range (0.07-0.14)
+                              const minConversion = 0.07;
+                              const maxConversion = 0.14;
+                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
+                              bgColor = `rgba(59, 130, 246, ${normalizedValue})`; // Blue
+                              textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
                             }
                             
                             return (
@@ -542,10 +541,8 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                 <p className="text-gray-700">
                   This heatmap visualizes performance metrics across different channels and dimensions. 
                   Dimensions are grouped by {channelMatrixDimension === 'goal' ? 'campaign goals' : 'target audiences'}.
-                  {channelMatrixMetric === 'roi' && channelMatrixDimension === 'goal' && ' Darker green indicates higher ROI (scaled for 2-7x range).'}
-                  {channelMatrixMetric === 'roi' && channelMatrixDimension === 'target_audience' && ' Darker purple indicates higher ROI (scaled for 1.5-6x range).'}
-                  {channelMatrixMetric === 'conversion' && channelMatrixDimension === 'goal' && ' Darker blue indicates higher conversion rates (scaled for 7-14% range).'}
-                  {channelMatrixMetric === 'conversion' && channelMatrixDimension === 'target_audience' && ' Darker orange indicates higher conversion rates (scaled for 5-12% range).'}
+                  {channelMatrixMetric === 'roi' && ' Darker green indicates higher ROI (scaled for 2-7x range).'}
+                  {channelMatrixMetric === 'conversion' && ' Darker blue indicates higher conversion rates (scaled for 7-14% range).'}
                 </p>
               </div>
             </div>
@@ -623,6 +620,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                     dataKey="avg_roi" 
                     name="ROI" 
                     unit="x"
+                    tickFormatter={(value) => value.toFixed(1)}
                     label={{ value: 'ROI (x)', angle: -90, position: 'insideLeft' }}
                     domain={[0, 'dataMax + 0.5']}
                   />
@@ -636,7 +634,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                     cursor={{ strokeDasharray: '3 3' }}
                     formatter={(value: any, name: string) => {
                       if (name === 'ROI') return [`${value.toFixed(1)}x`, name];
-                      if (name === 'Total Spend') return [`$${formatNumber(value)}`, name];
+                      if (name === 'Total Spend') return [`$${(value / 1000).toFixed(2)}K`, name];
                       return [value, name];
                     }}
                     content={({ active, payload }) => {
@@ -646,7 +644,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                           <div className="bg-white p-3 border rounded shadow-sm">
                             <p className="font-bold text-sm">{channel.channel_id}</p>
                             <p className="text-sm">ROI: <span className="font-semibold">{formatROI(channel.avg_roi)}</span></p>
-                            <p className="text-sm">Total Spend: <span className="font-semibold">${formatNumber(channel.total_spend || 0)}</span></p>
+                            <p className="text-sm">Total Spend: <span className="font-semibold">${formatCurrencyK(channel.total_spend || 0)}</span></p>
                             <p className="text-sm">Conversion Rate: <span className="font-semibold">{formatPercent(channel.avg_conversion_rate)}</span></p>
                             <p className="text-sm">Campaigns: <span className="font-semibold">{channel.campaign_count}</span></p>
                           </div>
@@ -657,7 +655,6 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                   />
                   <Legend />
                   <Scatter 
-                    name="Channels" 
                     data={efficiencyData.channels.map(channel => {
                       const calculatedSpend = channel.total_spend || (channel.avg_acquisition_cost * channel.campaign_count);
                       return {
@@ -701,18 +698,10 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
               <div className="font-medium mb-1">Efficiency Analysis:</div>
               <p className="text-gray-700">
                 This bubble chart visualizes channel efficiency by plotting ROI against total spend. 
-                Bubble size represents the number of campaigns run on each channel. 
-                The chart is divided into quadrants by median ROI and median spend lines:
               </p>
-              <ul className="list-disc pl-5 mt-2 text-gray-700">
-                <li><span className="font-medium text-green-600">Top-Left Quadrant (High ROI, Low Spend):</span> Most efficient channels with growth potential</li>
-                <li><span className="font-medium text-blue-600">Top-Right Quadrant (High ROI, High Spend):</span> Star performers that are well-funded</li>
-                <li><span className="font-medium text-yellow-600">Bottom-Left Quadrant (Low ROI, Low Spend):</span> Low priority or experimental channels</li>
-                <li><span className="font-medium text-red-600">Bottom-Right Quadrant (Low ROI, High Spend):</span> Inefficient channels needing optimization</li>
-              </ul>
               {efficiencyData.channels.length > 0 && (
                 <div className="mt-2">
-                  <span className="font-medium">Key Insight:</span> 
+                  <span className="font-medium">Key Insight: </span> 
                   {(() => {
                     // Find high efficiency channels (high ROI, reasonable spend)
                     const highEfficiencyChannels = efficiencyData.channels
@@ -778,7 +767,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
             <div className="flex items-center mb-4 space-x-4">
               <div className="flex-1">
                 <label htmlFor="budget-slider" className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Marketing Budget: ${customBudget !== null ? formatNumber(customBudget) : formatNumber(totalBudget)}
+                  Total Marketing Budget: ${customBudget !== null ? formatCurrencyK(customBudget) : formatCurrencyK(totalBudget)}
                 </label>
                 <input
                   id="budget-slider"
@@ -859,7 +848,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                   margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value) => `$${formatNumber(value)}`} />
+                  <XAxis type="number" tickFormatter={(value) => `$${(value / 1000).toFixed(2)}K`} />
                   <YAxis 
                     dataKey="channel_id" 
                     type="category" 
@@ -880,7 +869,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                   <Tooltip
                     formatter={(value, name, props) => {
                       if (name === 'amount') {
-                        return [`$${formatNumber(value as number)}`, 'Budget'];
+                        return [`$${((value as number) / 1000).toFixed(2)}K`, 'Budget'];
                       }
                       if (name === 'roi') {
                         return [`${(value as number).toFixed(2)}x`, 'ROI'];
@@ -920,7 +909,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
               </ResponsiveContainer>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               {budgetData.optimized_allocation.map((channel, index) => {
                 const currentChannel = budgetData.current_allocation.find(c => c.channel_id === channel.channel_id);
                 const changePercent = currentChannel ? 
@@ -935,9 +924,9 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                     <div className="font-semibold text-gray-800">{channel.channel_id}</div>
                     <div className="flex justify-between items-center mt-1">
                       <div>
-                        <div className="text-sm text-gray-600">Current: ${formatNumber(currentChannel?.amount || 0)}</div>
+                        <div className="text-sm text-gray-600">Current: ${((currentChannel?.amount || 0) / 1000).toFixed(2)}K</div>
                         <div className="text-sm font-medium">
-                          Recommended: ${formatNumber(channel.amount)}
+                          Recommended: ${(channel.amount / 1000).toFixed(2)}K
                         </div>
                       </div>
                       <div className={`text-sm font-bold ${getRecommendationTextColor(changeDirection)}`}>
@@ -1078,7 +1067,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
               </p>
               {benchmarks.channels.length > 0 && (
                 <div className="mt-2">
-                  <span className="font-medium">Key Insight:</span> 
+                  <span className="font-medium">Key Insight: </span> 
                   {(() => {
                     const excellentChannels = benchmarks.channels.filter((b: any) => b.overall_performance === 'excellent') || [];
                     const belowAverageChannels = benchmarks.channels.filter((b: any) => 
