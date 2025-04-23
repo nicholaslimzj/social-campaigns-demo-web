@@ -76,17 +76,58 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
 
       {results && !error && (
         <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
-          <h3 className="text-lg font-medium mb-2">Answer:</h3>
-          <p className="text-gray-700 mb-4">{results.answer}</p>
+          <h3 className="text-lg font-medium mb-2">Query Results</h3>
           
-          {results.data && (
+          {/* SQL Query */}
+          <div className="mb-4">
+            <h4 className="text-md font-medium mb-2">SQL Query:</h4>
+            <div className="bg-gray-50 p-3 rounded overflow-x-auto">
+              <pre className="text-sm whitespace-pre-wrap">{results.sql}</pre>
+            </div>
+          </div>
+          
+          {/* Results Table */}
+          {results.results && results.results.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-md font-medium mb-2">Data:</h4>
-              <div className="bg-gray-50 p-3 rounded overflow-x-auto">
-                <pre className="text-sm">
-                  {JSON.stringify(results.data, null, 2)}
-                </pre>
+              <h4 className="text-md font-medium mb-2">Results:</h4>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {Object.keys(results.results[0]).map((key) => (
+                        <th 
+                          key={key}
+                          scope="col"
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          {key.replace(/_/g, ' ')}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {results.results.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {Object.values(row).map((value, colIndex) => (
+                          <td 
+                            key={`${rowIndex}-${colIndex}`}
+                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                          >
+                            {value !== null ? String(value) : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            </div>
+          )}
+          
+          {/* Empty Results */}
+          {(!results.results || results.results.length === 0) && (
+            <div className="mt-4 p-4 bg-yellow-50 text-yellow-700 rounded">
+              No results found for this query.
             </div>
           )}
         </div>

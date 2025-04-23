@@ -240,9 +240,8 @@ type QueryResultData = Record<string, unknown> | Array<Record<string, unknown>> 
 
 export interface QueryResult {
   question: string;
-  answer: string;
-  data?: QueryResultData;
-  chart_type?: string;
+  sql: string;
+  results: Array<Record<string, any>>;
   error?: string;
 }
 
