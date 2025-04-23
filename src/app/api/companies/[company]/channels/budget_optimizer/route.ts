@@ -5,17 +5,18 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { company: string } }
+  { params }: { params: { company: string } | Promise<{ company: string }> }
 ) {
   try {
-    const { company } = params;
-    const companyId = company;
+    // Ensure params is awaited
+    const resolvedParams = await params;
+    const companyId = resolvedParams.company;
     const searchParams = request.nextUrl.searchParams;
     const totalBudget = searchParams.get('total_budget') || '0';
     const optimizationGoal = searchParams.get('optimization_goal') || 'roi';
     
     // Get the API base URL from environment variables or use a default
-    const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     
     // Call the backend API to get channel budget optimizer data
     const response = await fetch(

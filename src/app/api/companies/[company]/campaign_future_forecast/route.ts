@@ -7,22 +7,23 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ company: string }> }
 ) {
-  const { company } = await params;
+  const resolvedParams = await params;
+  const companyId = resolvedParams.company;
   const url = new URL(request.url);
-  const dimension = url.searchParams.get('dimension') || 'audience';
+  const metric = url.searchParams.get('metric') || 'roi';
   
   try {
     const response = await axios.get(
-      `${API_BASE_URL}/api/companies/${encodeURIComponent(company)}/campaign_duration_analysis?dimension=${dimension}`
+      `${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/campaign_future_forecast?metric=${metric}`
     );
     return NextResponse.json(response.data);
   } catch (error: unknown) {
-    console.error('Error fetching campaign duration analysis:', error);
+    console.error('Error fetching campaign future forecast:', error);
     
     // Type guard for axios errors
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
-      const message = error.response?.data?.error || error.message || 'Failed to fetch campaign duration analysis';
+      const message = error.response?.data?.error || error.message || 'Failed to fetch campaign future forecast';
       
       return NextResponse.json({ error: message }, { status });
     }
@@ -30,7 +31,7 @@ export async function GET(
     // For non-axios errors
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: `Failed to fetch campaign duration analysis: ${errorMessage}` },
+      { error: `Failed to fetch campaign future forecast: ${errorMessage}` },
       { status: 500 }
     );
   }

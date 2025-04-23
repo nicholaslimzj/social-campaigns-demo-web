@@ -27,6 +27,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
 }) => {
   // State for dropdown selections
   const [channelMatrixDimension, setChannelMatrixDimension] = useState<string>('goal');
+  const [channelMatrixMetric, setChannelMatrixMetric] = useState<string>('roi');
   const [channelTrendMetric, setChannelTrendMetric] = useState<string>('roi');
 
   // State for API data
@@ -85,7 +86,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
     const fetchMatrixData = async () => {
       try {
         setLoading(prev => ({ ...prev, matrix: true }));
-        const data = await fetchChannelPerformanceMatrix(companyId, 'goal');
+        const data = await fetchChannelPerformanceMatrix(companyId, channelMatrixDimension);
         setPerformanceMatrix(data);
         setError(prev => ({ ...prev, matrix: undefined }));
       } catch (err) {
@@ -97,7 +98,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
     };
     
     fetchMatrixData();
-  }, [companyId]);
+  }, [companyId, channelMatrixDimension]); // Re-fetch when dimension changes
 
   // Fetch benchmark data
   useEffect(() => {
@@ -230,11 +231,14 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
           case 'conversion':
             value = metric.conversion_rate;
             break;
-          case 'acquisition':
-            value = metric.acquisition_cost;
-            break;
-          case 'ctr':
-            value = metric.ctr;
+          case 'cpa':
+            // Cost Per Acquisition = acquisition_cost / (clicks * conversion_rate)
+            // If clicks or conversion_rate is 0, use acquisition_cost directly to avoid division by zero
+            if (metric.clicks && metric.clicks > 0 && metric.conversion_rate && metric.conversion_rate > 0) {
+              value = metric.acquisition_cost / (metric.clicks * metric.conversion_rate);
+            } else {
+              value = metric.acquisition_cost;
+            }
             break;
           case 'spend':
             value = metric.total_spend;
@@ -321,8 +325,7 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
             >
               <option value="roi">ROI</option>
               <option value="conversion">Conversion Rate</option>
-              <option value="acquisition">Acquisition Cost</option>
-              <option value="ctr">Click-Through Rate</option>
+              <option value="cpa">Cost Per Acquisition</option>
               <option value="spend">Total Spend</option>
             </select>
           </div>
@@ -405,13 +408,12 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
           <p className="text-gray-700">
             This chart shows the {channelTrendMetric === 'roi' && 'Return on Investment (ROI)'}
             {channelTrendMetric === 'conversion' && 'Conversion Rate'}
-            {channelTrendMetric === 'acquisition' && 'Acquisition Cost'}
-            {channelTrendMetric === 'ctr' && 'Click-Through Rate (CTR)'} 
+            {channelTrendMetric === 'cpa' && 'Cost Per Acquisition'}
             {channelTrendMetric === 'spend' && 'Spend'} 
             trends for each marketing channel over time. 
             {channelTrendMetric === 'roi' && ' Higher values indicate better performance.'}
             {channelTrendMetric === 'conversion' && ' Higher percentages indicate better performance.'}
-            {channelTrendMetric === 'acquisition' && ' Lower costs indicate better performance.'}
+            {channelTrendMetric === 'cpa' && ' Lower costs indicate better performance. This is calculated as acquisition cost divided by (clicks × conversion rate).'}
             {channelTrendMetric === 'spend' && ' This shows your budget allocation across channels over time.'}
           </p>
         </div>
@@ -432,8 +434,8 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
             </select>
             <select 
               className="border rounded p-2 text-sm"
-              value={channelTrendMetric}
-              onChange={(e) => setChannelTrendMetric(e.target.value)}
+              value={channelMatrixMetric}
+              onChange={(e) => setChannelMatrixMetric(e.target.value)}
             >
               <option value="roi">ROI</option>
               <option value="conversion">Conversion Rate</option>
@@ -478,24 +480,43 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                             let bgColor = 'rgba(229, 231, 235, 0.5)'; // Default light gray
                             let textColor = 'text-gray-500';
                             
-                            if (channelTrendMetric === 'roi') {
+                            if (channelMatrixMetric === 'roi') {
                               metricValue = dimension.metrics.roi;
-                              // Higher ROI is better (green)
-                              // Scale ROI from 2-7 range
-                              const minROI = 2;
-                              const maxROI = 7;
-                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
-                              bgColor = `rgba(16, 185, 129, ${normalizedValue})`;
-                              textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                              // Higher ROI is better
+                              // Use different color schemes based on dimension type
+                              if (channelMatrixDimension === 'goal') {
+                                // Green for goals dimension - Scale ROI from 2-7 range
+                                const minROI = 2;
+                                const maxROI = 7;
+                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
+                                bgColor = `rgba(16, 185, 129, ${normalizedValue})`; // Green
+                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                              } else {
+                                // Purple for target audience dimension - Scale ROI from 1.5-6 range
+                                const minROI = 1.5;
+                                const maxROI = 6;
+                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minROI) / (maxROI - minROI)));
+                                bgColor = `rgba(139, 92, 246, ${normalizedValue})`; // Purple
+                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                              }
                             } else {
                               metricValue = dimension.metrics.conversion_rate;
-                              // Higher conversion is better (blue)
-                              // Scale conversion from 7-14% range (0.07-0.14)
-                              const minConversion = 0.07;
-                              const maxConversion = 0.14;
-                              const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
-                              bgColor = `rgba(59, 130, 246, ${normalizedValue})`;
-                              textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                              // Higher conversion is better
+                              if (channelMatrixDimension === 'goal') {
+                                // Blue for goals dimension - Scale conversion from 7-14% range (0.07-0.14)
+                                const minConversion = 0.07;
+                                const maxConversion = 0.14;
+                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
+                                bgColor = `rgba(59, 130, 246, ${normalizedValue})`; // Blue
+                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                              } else {
+                                // Orange for target audience dimension - Scale conversion from 5-12% range (0.05-0.12)
+                                const minConversion = 0.05;
+                                const maxConversion = 0.12;
+                                const normalizedValue = Math.max(0, Math.min(1, (metricValue - minConversion) / (maxConversion - minConversion)));
+                                bgColor = `rgba(249, 115, 22, ${normalizedValue})`; // Orange
+                                textColor = normalizedValue > 0.5 ? 'text-white' : 'text-gray-900';
+                              }
                             }
                             
                             return (
@@ -504,8 +525,8 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                                 className={`px-4 py-2 whitespace-nowrap text-sm ${textColor}`}
                                 style={{ backgroundColor: bgColor }}
                               >
-                                {channelTrendMetric === 'roi' && formatROI(dimension.metrics.roi)}
-                                {channelTrendMetric === 'conversion' && formatPercent(dimension.metrics.conversion_rate)}
+                                {channelMatrixMetric === 'roi' && formatROI(dimension.metrics.roi)}
+                                {channelMatrixMetric === 'conversion' && formatPercent(dimension.metrics.conversion_rate)}
                               </td>
                             );
                           })}
@@ -521,8 +542,10 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
                 <p className="text-gray-700">
                   This heatmap visualizes performance metrics across different channels and dimensions. 
                   Dimensions are grouped by {channelMatrixDimension === 'goal' ? 'campaign goals' : 'target audiences'}.
-                  {channelTrendMetric === 'roi' && ' Darker green indicates higher ROI (scaled for 2-7x range).'}
-                  {channelTrendMetric === 'conversion' && ' Darker blue indicates higher conversion rates (scaled for 7-14% range).'}
+                  {channelMatrixMetric === 'roi' && channelMatrixDimension === 'goal' && ' Darker green indicates higher ROI (scaled for 2-7x range).'}
+                  {channelMatrixMetric === 'roi' && channelMatrixDimension === 'target_audience' && ' Darker purple indicates higher ROI (scaled for 1.5-6x range).'}
+                  {channelMatrixMetric === 'conversion' && channelMatrixDimension === 'goal' && ' Darker blue indicates higher conversion rates (scaled for 7-14% range).'}
+                  {channelMatrixMetric === 'conversion' && channelMatrixDimension === 'target_audience' && ' Darker orange indicates higher conversion rates (scaled for 5-12% range).'}
                 </p>
               </div>
             </div>

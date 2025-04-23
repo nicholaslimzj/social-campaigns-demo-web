@@ -737,7 +737,7 @@ const CohortAnalysis: React.FC<CohortAnalysisProps> = ({
               </p>
               {benchmarks.audiences.length > 0 && (
                 <div className="mt-2">
-                  <span className="font-medium">Key Insight:</span> 
+                  <span className="font-medium">Key Insight: </span> 
                   {(() => {
                     const excellentSegments = benchmarks.audiences.filter((b: any) => b.overall_performance === 'excellent') || [];
                     const belowAverageSegments = benchmarks.audiences.filter((b: any) => 

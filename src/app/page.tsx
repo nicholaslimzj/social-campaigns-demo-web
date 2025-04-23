@@ -6,13 +6,11 @@ import {
   fetchCompanyMonthlyMetrics,
   fetchCompanyAudiences,
   fetchCompanyChannels,
-  fetchCampaignDurationAnalysis,
   askQuestion,
   Company,
   CompanyMetrics,
   AudienceResponse,
   ChannelResponse,
-  CampaignDurationResponse,
   QueryResult
 } from './utils/api';
 
@@ -25,6 +23,7 @@ import TabNavigation from './components/TabNavigation';
 import QueryInterface from './components/QueryInterface';
 import CohortAnalysis from './components/CohortAnalysis';
 import ChannelAnalysis from './components/ChannelAnalysis';
+import CampaignAnalysis from './components/CampaignAnalysis';
 
 export default function Home() {
   // State for company selection and navigation
@@ -36,8 +35,6 @@ export default function Home() {
   const [monthlyMetrics, setMonthlyMetrics] = useState<CompanyMetrics | null>(null);
   const [audiences, setAudiences] = useState<AudienceResponse | null>(null);
   const [channels, setChannels] = useState<ChannelResponse | null>(null);
-  // Campaign duration data is fetched but not currently displayed in the UI
-  const [, setCampaignDuration] = useState<CampaignDurationResponse | null>(null);
   
   // State for loading and errors
   const [loading, setLoading] = useState<boolean>(true);
@@ -76,17 +73,15 @@ export default function Home() {
       setLoading(true);
       try {
         // Fetch all required data for the company
-        const [metricsData, audiencesData, channelsData, durationData] = await Promise.all([
+        const [metricsData, audiencesData, channelsData] = await Promise.all([
           fetchCompanyMonthlyMetrics(selectedCompany, true),
           fetchCompanyAudiences(selectedCompany, true),
-          fetchCompanyChannels(selectedCompany, true),
-          fetchCampaignDurationAnalysis(selectedCompany)
+          fetchCompanyChannels(selectedCompany, true)
         ]);
         
         setMonthlyMetrics(metricsData);
         setAudiences(audiencesData);
         setChannels(channelsData);
-        setCampaignDuration(durationData);
       } catch (err) {
         setError('Failed to load company data');
         console.error(err);
@@ -469,10 +464,11 @@ export default function Home() {
         )}
 
         {activeTab === 'campaign' && (
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Campaign Analysis</h3>
-            <p className="text-gray-500">Campaign analysis content will be implemented in a future update.</p>
-          </div>
+          <CampaignAnalysis 
+            audiences={audiences} 
+            channels={channels} 
+            companyId={selectedCompany} 
+          />
         )}
       </div>
 

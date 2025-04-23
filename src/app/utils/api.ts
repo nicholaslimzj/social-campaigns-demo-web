@@ -585,17 +585,141 @@ export async function fetchChannelAnomalies(companyId: string): Promise<ChannelA
 }
 
 /**
+ * Campaign Duration Analysis interfaces
+ */
+export interface CampaignDurationMetrics {
+  duration_bucket: string;
+  avg_roi: number;
+  avg_conversion_rate: number;
+  avg_acquisition_cost: number;
+  avg_ctr: number;
+  campaign_count: number;
+  optimal_flag: boolean;
+  performance_index: number;
+}
+
+export interface CampaignDurationDimension {
+  dimension_value: string;
+  metrics: CampaignDurationMetrics[];
+  optimal_duration: string;
+  roi_impact: number;
+}
+
+export interface CampaignDurationResponse {
+  company: string;
+  dimension: string;
+  dimension_values: CampaignDurationDimension[];
+  overall_optimal_duration: string;
+  overall_roi_impact: number;
+}
+
+/**
  * Fetch campaign duration analysis for a specific company
  */
-export async function fetchCampaignDurationAnalysis(companyId: string): Promise<CampaignDurationResponse> {
+export async function fetchCampaignDurationAnalysis(companyId: string, dimension: string = 'audience'): Promise<CampaignDurationResponse> {
   try {
-    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/campaign_duration_analysis`);
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/campaign_duration_analysis?dimension=${dimension}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch campaign duration analysis: ${response.status}`);
     }
     return await response.json();
   } catch (error) {
     console.error('Error fetching campaign duration analysis:', error);
+    throw error;
+  }
+}
+
+/**
+ * Campaign Future Forecast interfaces
+ */
+export interface ForecastDataPoint {
+  date: string;
+  value: number;
+}
+
+export interface ConfidenceInterval {
+  date: string;
+  lower: number;
+  upper: number;
+  confidence_level: number;
+}
+
+export interface CampaignClusterItem {
+  goal: string;
+  segment: string;
+  channel: string;
+  duration_bucket: string;
+  campaign_count: number;
+  conversion_rate: number;
+  roi: number;
+  acquisition_cost: number;
+  ctr: number;
+  min_duration: number;
+  max_duration: number;
+  avg_duration: number;
+  roi_vs_company: number;
+  conversion_rate_vs_company: number;
+  performance_score: number;
+  is_optimal_duration: boolean;
+  optimal_duration_range: string;
+  recommended_action: string;
+}
+
+export interface CampaignClustersResponse {
+  company: string;
+  high_roi: CampaignClusterItem[];
+  high_conversion: CampaignClusterItem[];
+}
+
+export interface CampaignForecastResponse {
+  company: string;
+  metric: string;
+  historical_data: ForecastDataPoint[];
+  forecast_data: ForecastDataPoint[];
+  confidence_intervals: ConfidenceInterval[];
+  metadata: {
+    forecast_periods: number;
+    historical_periods: number;
+    last_historical_date?: string;
+    first_forecast_date?: string;
+    error?: string;
+  };
+}
+
+/**
+ * Fetch campaign clusters for a specific company
+ * Returns both high ROI and high conversion clusters in a single response
+ */
+export async function fetchCampaignClusters(companyId: string, limit: number = 5): Promise<CampaignClustersResponse> {
+  try {
+    const response = await fetch(`${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/campaign_clusters?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch campaign clusters: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching campaign clusters:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch campaign future forecast data
+ */
+export async function fetchCampaignFutureForecasts(
+  companyId: string,
+  metric: string = 'revenue'
+): Promise<CampaignForecastResponse> {
+  try {
+    const response = await fetch(
+      `${window.location.origin}/api/companies/${encodeURIComponent(companyId)}/campaign_future_forecast?metric=${metric}`
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch campaign future forecast: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching campaign future forecast:', error);
     throw error;
   }
 }

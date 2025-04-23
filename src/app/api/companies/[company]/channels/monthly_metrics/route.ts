@@ -5,14 +5,16 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { company: string } }
+  { params }: { params: { company: string } | Promise<{ company: string }> }
 ) {
   try {
-    const { company } = params;
+    // Ensure params is awaited
+    const resolvedParams = await params;
+    const { company } = resolvedParams;
     const companyId = company;
     
     // Get the API base URL from environment variables or use a default
-    const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     
     // Call the backend API to get channel monthly metrics
     const response = await fetch(
