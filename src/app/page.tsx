@@ -319,7 +319,7 @@ export default function Home() {
             </div>
           ) : insightHtml ? (
             <div className="relative min-h-[80px]">
-              <div dangerouslySetInnerHTML={{ __html: insightHtml }} />
+              <div className="insights-container" dangerouslySetInnerHTML={{ __html: insightHtml }} />
               {monthlyMetrics?.anomalies?.conversion_rate && monthlyMetrics.anomalies.conversion_rate.length > 0 && (
                 <div className="mt-2 text-red-500">
                   <span className="inline-block h-2 w-2 bg-red-500 rounded-full mr-1"></span>
@@ -392,7 +392,7 @@ export default function Home() {
             { id: 'cohort', label: 'Cohort Analysis' },
             { id: 'channel', label: 'Channel Analysis' },
             { id: 'campaign', label: 'Campaign Analysis' },
-            { id: 'ask', label: 'Ask AI', badge: 'NEW' }
+            { id: 'ask', label: 'Ask AI' }
           ]}
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -523,7 +523,7 @@ export default function Home() {
         
         {activeTab === 'ask' && (
           <div className="bg-white rounded-lg shadow p-4">
-            <h2 className="text-xl font-semibold mb-4">Ask AI about your marketing data</h2>
+            <h2 className="text-xl font-semibold mb-4">Talk to your data</h2>
             <p className="text-gray-600 mb-4">Ask natural language questions about your marketing data and get insights powered by AI.</p>
             <QueryInterface 
               question={question}

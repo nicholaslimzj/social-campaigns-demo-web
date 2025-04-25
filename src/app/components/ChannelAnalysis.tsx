@@ -150,19 +150,24 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
       try {
         setLoading(prev => ({ ...prev, budgetOptimizer: true }));
         // First fetch with default budget (0 means use current total spend)
-        const data = await fetchChannelBudgetOptimizer(companyId);
-        setBudgetData(data);
+        const initialData = await fetchChannelBudgetOptimizer(companyId);
         
         // Set the initial total budget from the API response
-        if (data.optimization_metrics && data.optimization_metrics.total_budget) {
-          setTotalBudget(data.optimization_metrics.total_budget);
-        } else if (data.current_allocation && data.current_allocation.length > 0) {
+        let calculatedBudget = 0;
+        if (initialData.optimization_metrics && initialData.optimization_metrics.total_budget) {
+          calculatedBudget = initialData.optimization_metrics.total_budget;
+          setTotalBudget(calculatedBudget);
+        } else if (initialData.current_allocation && initialData.current_allocation.length > 0) {
           // Calculate total from current allocation if not provided
-          const calculatedTotal = data.current_allocation.reduce(
+          calculatedBudget = initialData.current_allocation.reduce(
             (sum, channel) => sum + channel.amount, 0
           );
-          setTotalBudget(calculatedTotal);
+          setTotalBudget(calculatedBudget);
         }
+        
+        // Immediately fetch the optimized budget data using the calculated budget
+        const optimizedData = await fetchChannelBudgetOptimizer(companyId, calculatedBudget);
+        setBudgetData(optimizedData);
         
         setError(prev => ({ ...prev, budgetOptimizer: undefined }));
       } catch (err) {
@@ -435,6 +440,276 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
             {channelTrendMetric === 'spend' && ' This shows your budget allocation across channels over time.'}
           </p>
         </div>
+      </div>
+      
+      {/* Budget Allocation Optimizer */}
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <h2 className="text-xl font-semibold mb-4">Budget Allocation Optimizer</h2>
+        
+        {loading.budgetOptimizer ? (
+          <div className="h-80 flex items-center justify-center">
+            <div className="animate-pulse text-blue-500">Loading budget optimizer data...</div>
+          </div>
+        ) : error.budgetOptimizer ? (
+          <div className="h-80 flex items-center justify-center text-red-500">
+            {error.budgetOptimizer}
+          </div>
+        ) : budgetData && budgetData.current_allocation && budgetData.optimized_allocation ? (
+          <div>
+            <div className="flex items-center mb-4 space-x-4">
+              <div className="flex-1">
+                <label htmlFor="budget-slider" className="block text-sm font-medium text-gray-700 mb-1">
+                  Total Marketing Budget: ${customBudget !== null ? formatCurrencyK(customBudget) : formatCurrencyK(totalBudget)}
+                </label>
+                <input
+                  id="budget-slider"
+                  type="range"
+                  min={totalBudget * 0.5}
+                  max={totalBudget * 1.5}
+                  step={totalBudget * 0.01}
+                  value={customBudget !== null ? customBudget : totalBudget}
+                  onChange={(e) => setCustomBudget(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoading(prev => ({ ...prev, budgetOptimizer: true }));
+                    // Use customBudget if it's set, otherwise use the default totalBudget
+                    const budgetToUse = customBudget !== null ? customBudget : totalBudget;
+                    const data = await fetchChannelBudgetOptimizer(companyId, budgetToUse);
+                    setBudgetData(data);
+                    setError(prev => ({ ...prev, budgetOptimizer: undefined }));
+                  } catch (err) {
+                    console.error('Error fetching budget optimizer data:', err);
+                    setError(prev => ({ ...prev, budgetOptimizer: 'Failed to load budget optimizer data' }));
+                  } finally {
+                    setLoading(prev => ({ ...prev, budgetOptimizer: false }));
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Optimize Budget
+              </button>
+              <button
+                onClick={() => {
+                  setCustomBudget(null);
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+            
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-lg font-semibold text-blue-700">
+                    {(budgetData.optimization_metrics.projected_improvement * 100).toFixed(1)}%
+                  </span>
+                  <span className="ml-2 text-gray-700">Projected Performance Improvement</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  Optimizing for: <span className="font-medium uppercase">{budgetData.optimization_metrics.optimization_goal}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-80 mb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={[
+                    ...budgetData.current_allocation.map(channel => ({
+                      channel_id: channel.channel_id,
+                      type: 'Current',
+                      amount: channel.amount,
+                      percentage: channel.percentage,
+                      roi: channel.roi
+                    })),
+                    ...budgetData.optimized_allocation.map(channel => ({
+                      channel_id: channel.channel_id,
+                      type: 'Optimized',
+                      amount: channel.amount,
+                      percentage: channel.percentage,
+                      roi: channel.roi,
+                      change_direction: channel.change_direction
+                    }))
+                  ]}
+                  layout="vertical"
+                  margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(value) => `$${(value / 1000).toFixed(2)}K`} />
+                  <YAxis 
+                    dataKey="channel_id" 
+                    type="category" 
+                    axisLine={true} 
+                    tickLine={true} 
+                    width={80} 
+                    yAxisId={0}
+                  />
+                  <YAxis 
+                    dataKey="type" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    yAxisId={1}
+                    orientation="right"
+                    width={80}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white p-3 border rounded shadow-sm">
+                            <p className="font-bold text-sm">{data.channel_id}</p>
+                            <p className="text-sm">Budget: <span className="font-semibold">${(data.amount / 1000).toFixed(2)}K</span></p>
+                            <p className="text-sm">ROI: <span className="font-semibold">{data.roi.toFixed(1)}x</span></p>
+                            <p className="text-sm">Type: <span className="font-semibold">{data.type}</span></p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="amount" 
+                    name="Budget Allocation"
+                    yAxisId={0}
+                  >
+                    {[
+                      ...budgetData.current_allocation.map((entry, index) => (
+                        <Cell 
+                          key={`cell-current-${index}`} 
+                          fill="#8884d8" 
+                          opacity={0.7}
+                        />
+                      )),
+                      ...budgetData.optimized_allocation.map((entry, index) => {
+                        const direction = entry.change_direction;
+                        // Color based on recommendation
+                        if (direction === 'increase_spend') return <Cell key={`cell-opt-${index}`} fill="#4CAF50" />;
+                        if (direction === 'decrease_spend') return <Cell key={`cell-opt-${index}`} fill="#FF5722" />;
+                        return <Cell key={`cell-opt-${index}`} fill="#2196F3" />;
+                      })
+                    ]}
+                  </Bar>
+                  <Bar 
+                    dataKey="roi" 
+                    name="ROI"
+                    yAxisId={1}
+                    fill="#82ca9d"
+                  >
+                    <LabelList dataKey="roi" position="right" formatter={(value) => `${value.toFixed(1)}x`} fill="#FFFFFF" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Channel
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Current Budget
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Optimized Budget
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Change
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Recommendation
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {budgetData.current_allocation.map((channel, index) => {
+                    const optimizedChannel = budgetData.optimized_allocation.find(c => c.channel_id === channel.channel_id);
+                    if (!optimizedChannel) return null;
+                    
+                    const change = optimizedChannel.amount - channel.amount;
+                    const changePercent = channel.amount > 0 ? (change / channel.amount) * 100 : 0;
+                    
+                    return (
+                      <tr key={channel.channel_id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {channel.channel_id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                          ${formatCurrencyK(channel.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
+                          ${formatCurrencyK(optimizedChannel.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {change >= 0 ? '+' : ''}{formatCurrencyK(change)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          <span 
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRecommendationTextColor(optimizedChannel.change_direction)} ${getRecommendationColor(optimizedChannel.change_direction)}`}
+                          >
+                            {optimizedChannel.change_direction === 'increase_spend' && 'Increase Budget'}
+                            {optimizedChannel.change_direction === 'decrease_spend' && 'Decrease Budget'}
+                            {optimizedChannel.change_direction === 'maintain_spend' && 'Maintain Budget'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
+              <div className="font-medium mb-1">Budget Optimization Analysis:</div>
+              <p className="text-gray-700">
+                This optimizer suggests budget reallocations to maximize overall performance. 
+                The model analyzes historical ROI, conversion rates, and other metrics to determine optimal allocation.
+              </p>
+              <div className="mt-2">
+                <span className="font-medium">Key Insight: </span>
+                {(() => {
+                  const increaseChannels = budgetData.optimized_allocation.filter(c => c.change_direction === 'increase_spend');
+                  const decreaseChannels = budgetData.optimized_allocation.filter(c => c.change_direction === 'decrease_spend');
+                  
+                  if (increaseChannels.length > 0 && decreaseChannels.length > 0) {
+                    return (
+                      <span>
+                        Reallocate budget from <span className="text-red-600 font-medium">{decreaseChannels[0].channel_id}</span> to <span className="text-green-600 font-medium">{increaseChannels[0].channel_id}</span> for a projected <span className="text-blue-600 font-medium">{(budgetData.optimization_metrics.projected_improvement * 100).toFixed(1)}%</span> performance improvement.
+                      </span>
+                    );
+                  } else if (increaseChannels.length > 0) {
+                    return (
+                      <span>
+                        Consider increasing overall budget with focus on <span className="text-green-600 font-medium">{increaseChannels[0].channel_id}</span> for optimal returns.
+                      </span>
+                    );
+                  } else {
+                    return (
+                      <span>
+                        Your current budget allocation is already well-optimized. Consider testing small adjustments to find further improvements.
+                      </span>
+                    );
+                  }
+                })()}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-12 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+            <p>No budget optimization data available</p>
+          </div>
+        )}
       </div>
       
       {/* Channel Performance Matrix Heatmap */}
@@ -746,224 +1021,6 @@ const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({
         ) : (
           <div className="py-12 bg-gray-100 rounded flex items-center justify-center text-gray-500">
             <p>No efficiency data available</p>
-          </div>
-        )}
-      </div>
-      
-      {/* Budget Allocation Optimizer */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4">Budget Allocation Optimizer</h2>
-        
-        {loading.budgetOptimizer ? (
-          <div className="h-80 flex items-center justify-center">
-            <div className="animate-pulse text-blue-500">Loading budget optimizer data...</div>
-          </div>
-        ) : error.budgetOptimizer ? (
-          <div className="h-80 flex items-center justify-center text-red-500">
-            {error.budgetOptimizer}
-          </div>
-        ) : budgetData && budgetData.current_allocation && budgetData.optimized_allocation ? (
-          <div>
-            <div className="flex items-center mb-4 space-x-4">
-              <div className="flex-1">
-                <label htmlFor="budget-slider" className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Marketing Budget: ${customBudget !== null ? formatCurrencyK(customBudget) : formatCurrencyK(totalBudget)}
-                </label>
-                <input
-                  id="budget-slider"
-                  type="range"
-                  min={totalBudget * 0.5}
-                  max={totalBudget * 1.5}
-                  step={totalBudget * 0.01}
-                  value={customBudget !== null ? customBudget : totalBudget}
-                  onChange={(e) => setCustomBudget(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-              <button
-                onClick={async () => {
-                  if (customBudget !== null) {
-                    try {
-                      setLoading(prev => ({ ...prev, budgetOptimizer: true }));
-                      const data = await fetchChannelBudgetOptimizer(companyId, customBudget);
-                      setBudgetData(data);
-                      setError(prev => ({ ...prev, budgetOptimizer: undefined }));
-                    } catch (err) {
-                      console.error('Error fetching budget optimizer data:', err);
-                      setError(prev => ({ ...prev, budgetOptimizer: 'Failed to load budget optimizer data' }));
-                    } finally {
-                      setLoading(prev => ({ ...prev, budgetOptimizer: false }));
-                    }
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              >
-                Optimize Budget
-              </button>
-              <button
-                onClick={() => {
-                  setCustomBudget(null);
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-              >
-                Reset
-              </button>
-            </div>
-            
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-lg font-semibold text-blue-700">
-                    {(budgetData.optimization_metrics.projected_improvement * 100).toFixed(1)}%
-                  </span>
-                  <span className="ml-2 text-gray-700">Projected Performance Improvement</span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  Optimizing for: <span className="font-medium uppercase">{budgetData.optimization_metrics.optimization_goal}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="h-80 mb-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[
-                    ...budgetData.current_allocation.map(channel => ({
-                      channel_id: channel.channel_id,
-                      type: 'Current',
-                      amount: channel.amount,
-                      percentage: channel.percentage,
-                      roi: channel.roi
-                    })),
-                    ...budgetData.optimized_allocation.map(channel => ({
-                      channel_id: channel.channel_id,
-                      type: 'Optimized',
-                      amount: channel.amount,
-                      percentage: channel.percentage,
-                      roi: channel.roi,
-                      change_direction: channel.change_direction
-                    }))
-                  ]}
-                  layout="vertical"
-                  margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value) => `$${(value / 1000).toFixed(2)}K`} />
-                  <YAxis 
-                    dataKey="channel_id" 
-                    type="category" 
-                    axisLine={true} 
-                    tickLine={true} 
-                    width={80} 
-                    yAxisId={0}
-                  />
-                  <YAxis 
-                    dataKey="type" 
-                    type="category" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    yAxisId={1}
-                    orientation="right"
-                    width={80}
-                  />
-                  <Tooltip
-                    formatter={(value, name, props) => {
-                      if (name === 'amount') {
-                        return [`$${((value as number) / 1000).toFixed(2)}K`, 'Budget'];
-                      }
-                      if (name === 'roi') {
-                        return [`${(value as number).toFixed(2)}x`, 'ROI'];
-                      }
-                      return [value, name];
-                    }}
-                  />
-                  <Legend />
-                  <Bar 
-                    dataKey="amount" 
-                    name="Budget Allocation"
-                    yAxisId={0}
-                  >
-                    {[
-                      ...budgetData.current_allocation.map((entry, index) => (
-                        <Cell 
-                          key={`cell-current-${index}`} 
-                          fill="#8884d8" 
-                          opacity={0.7}
-                        />
-                      )),
-                      ...budgetData.optimized_allocation.map((entry, index) => {
-                        const direction = entry.change_direction;
-                        // Color based on recommendation
-                        if (direction === 'increase_spend') return <Cell key={`cell-opt-${index}`} fill="#4CAF50" />;
-                        if (direction === 'decrease_spend') return <Cell key={`cell-opt-${index}`} fill="#FF5722" />;
-                        return <Cell key={`cell-opt-${index}`} fill="#2196F3" />;
-                      })
-                    ]}
-                    <LabelList 
-                      dataKey="roi" 
-                      position="right" 
-                      formatter={(value: any) => `${Number(value).toFixed(1)}x ROI`}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-              {budgetData.optimized_allocation.map((channel, index) => {
-                const currentChannel = budgetData.current_allocation.find(c => c.channel_id === channel.channel_id);
-                const changePercent = currentChannel ? 
-                  ((channel.amount - currentChannel.amount) / currentChannel.amount * 100) : 0;
-                const changeDirection = channel.change_direction;
-                
-                return (
-                  <div 
-                    key={channel.channel_id}
-                    className={`p-3 rounded-lg border ${getRecommendationColor(changeDirection)}`}
-                  >
-                    <div className="font-semibold text-gray-800">{channel.channel_id}</div>
-                    <div className="flex justify-between items-center mt-1">
-                      <div>
-                        <div className="text-sm text-gray-600">Current: ${((currentChannel?.amount || 0) / 1000).toFixed(2)}K</div>
-                        <div className="text-sm font-medium">
-                          Recommended: ${(channel.amount / 1000).toFixed(2)}K
-                        </div>
-                      </div>
-                      <div className={`text-sm font-bold ${getRecommendationTextColor(changeDirection)}`}>
-                        {changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
-              <div className="font-medium mb-1">Budget Optimization Analysis:</div>
-              <p className="text-gray-700">
-                This tool optimizes your marketing budget allocation across channels based on historical performance data.
-                The optimization algorithm considers ROI, conversion rates, and diminishing returns to recommend the ideal
-                budget distribution. Adjust the total budget slider to see how different budget levels affect the optimal allocation.
-              </p>
-              <div className="mt-2 flex space-x-4">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-                  <span className="text-xs">Increase Spend</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>
-                  <span className="text-xs">Maintain Spend</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
-                  <span className="text-xs">Decrease Spend</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="h-80 bg-gray-100 rounded flex items-center justify-center text-gray-500">
-            <p>No budget optimization data available.</p>
           </div>
         )}
       </div>

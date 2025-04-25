@@ -60,7 +60,7 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ company, anomaly }) => {
           </div>
         ) : insightHtml ? (
           <div className="relative min-h-[80px]">
-            <div dangerouslySetInnerHTML={{ __html: insightHtml }} />
+            <div className="insights-container" dangerouslySetInnerHTML={{ __html: insightHtml }} />
             {anomaly && (
               <div className="mt-2 text-red-500">
                 <span className="inline-block h-2 w-2 bg-red-500 rounded-full mr-1"></span>

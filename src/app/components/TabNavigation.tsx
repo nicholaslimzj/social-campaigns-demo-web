@@ -38,7 +38,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({
             >
               {tab.label}
               {tab.badge && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] px-1 py-0.5 rounded-full">
                   {tab.badge}
                 </span>
               )}

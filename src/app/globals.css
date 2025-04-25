@@ -11,3 +11,16 @@
 body {
   background: #f6f5f4;
 }
+
+/* Insights container styles */
+.insights-container > div {
+  margin-bottom: 0.5rem;
+}
+
+.insights-container p {
+  margin-bottom: 0.5rem;
+}
+
+.insights-container p:last-child {
+  margin-top: 0.75rem;
+}
