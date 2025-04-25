@@ -242,6 +242,7 @@ export interface QueryResult {
   question: string;
   sql: string;
   results: Array<Record<string, any>>;
+  description: string;
   error?: string;
 }
 

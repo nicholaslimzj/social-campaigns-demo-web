@@ -391,7 +391,8 @@ export default function Home() {
             { id: 'overview', label: 'Overview' },
             { id: 'cohort', label: 'Cohort Analysis' },
             { id: 'channel', label: 'Channel Analysis' },
-            { id: 'campaign', label: 'Campaign Analysis' }
+            { id: 'campaign', label: 'Campaign Analysis' },
+            { id: 'ask', label: 'Ask AI', badge: 'NEW' }
           ]}
           activeTab={activeTab}
           onTabChange={handleTabChange}
@@ -519,18 +520,21 @@ export default function Home() {
             companyId={selectedCompany} 
           />
         )}
-      </div>
-
-      {/* Query Interface */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <QueryInterface 
-          question={question}
-          onQuestionChange={setQuestion}
-          onSubmit={handleQuerySubmit}
-          results={queryResults}
-          loading={queryLoading}
-          error={error}
-        />
+        
+        {activeTab === 'ask' && (
+          <div className="bg-white rounded-lg shadow p-4">
+            <h2 className="text-xl font-semibold mb-4">Ask AI about your marketing data</h2>
+            <p className="text-gray-600 mb-4">Ask natural language questions about your marketing data and get insights powered by AI.</p>
+            <QueryInterface 
+              question={question}
+              onQuestionChange={setQuestion}
+              onSubmit={handleQuerySubmit}
+              results={queryResults}
+              loading={queryLoading}
+              error={error}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

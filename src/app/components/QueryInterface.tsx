@@ -78,18 +78,26 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
         <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
           <h3 className="text-lg font-medium mb-2">Query Results</h3>
           
+          {/* Analysis - Display prominently at the top */}
+          {results.description && (
+            <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+              <h4 className="text-md font-medium mb-2 text-blue-700">Analysis:</h4>
+              <p className="text-md text-blue-800">{results.description}</p>
+            </div>
+          )}
+          
           {/* SQL Query */}
           <div className="mb-4">
             <h4 className="text-md font-medium mb-2">SQL Query:</h4>
             <div className="bg-gray-50 p-3 rounded overflow-x-auto">
-              <pre className="text-sm whitespace-pre-wrap">{results.sql}</pre>
+              <pre className="text-sm whitespace-pre-wrap">{results.sql || "No SQL query generated"}</pre>
             </div>
           </div>
           
           {/* Results Table */}
           {results.results && results.results.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-md font-medium mb-2">Results:</h4>
+              <h4 className="text-md font-medium mb-2">Raw Results:</h4>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -125,7 +133,7 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
           )}
           
           {/* Empty Results */}
-          {(!results.results || results.results.length === 0) && (
+          {(!results.results || results.results.length === 0) && results.sql && (
             <div className="mt-4 p-4 bg-yellow-50 text-yellow-700 rounded">
               No results found for this query.
             </div>

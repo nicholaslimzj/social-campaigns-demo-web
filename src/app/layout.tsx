@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meta Demo Dashboard",
+  title: "Social Campaigns Dashboard",
   description: "Social media advertising analytics dashboard with natural language querying",
 };
 

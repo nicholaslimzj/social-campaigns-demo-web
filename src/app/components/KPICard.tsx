@@ -47,11 +47,13 @@ const KPICard: React.FC<KPICardProps> = ({
       <h3 className="text-sm font-medium text-gray-500 mb-1">{title}</h3>
       <div className="flex items-center justify-between">
         <p className="text-2xl font-bold">{prefix}{formatValue(value)}{suffix}</p>
-        <span className={`flex items-center ${trendColor}`}>
-          {trend === 'up' ? '↑' : '↓'} {changePrefix}{Math.abs(change * 100).toFixed(1)}%
-        </span>
+        <div className="flex flex-col items-end">
+          <span className={`flex items-center ${trendColor}`}>
+            {trend === 'up' ? '↑' : '↓'} {changePrefix}{Math.abs(change * 100).toFixed(1)}%
+          </span>
+          <p className="text-xs text-gray-500 mt-1">vs last month</p>
+        </div>
       </div>
-      <p className="text-xs text-gray-500 mt-1">vs last month</p>
     </div>
   );
 };
